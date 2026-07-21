@@ -2,7 +2,7 @@
 
 ---
 Hassan Shahbaz ACT AI
-University of Education
+University of Education.
 
 ## 1. Executive Summary & Core Paradigm
 
