@@ -1,6 +1,8 @@
 # RoboMarket AI, Cognitive Robotic Hardware Marketplace & Auditing System
 
 ---
+Hassan Shahbaz ACT AI
+University of Education
 
 ## 1. Executive Summary & Core Paradigm
 
@@ -53,7 +55,7 @@ In the contemporary robotics industry, hardware procurement remains plagued by h
 For active inspection, testing, and grading, please reference the following live project nodes:
 
 - **🔴 LIVE Deployed Vercel URL:** [https://robomarket-ai-vjiu.vercel.app](https://robomarket-ai-vjiu.vercel.app) *(Active Production Node)*
-- ** Video link:- 
+- ** Video link:**  https://drive.google.com/drive/folders/1XtP_ohsJtnvpV6SeKOklliNQ9Hr8sLj1
 
 ---
 
