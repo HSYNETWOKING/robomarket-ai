@@ -1,8 +1,4 @@
-# RoboMarket AI — Cognitive Robotic Hardware Marketplace & Auditing System
-
-> **Final-Year University Capstone Project Report & Exhibition Documentation**  
-> **Course:** CS-499: Senior Design & Autonomous Systems  
-> **Acreage Level:** Academic Exhibition & Production-Ready Commercial System  
+# RoboMarket AI, Cognitive Robotic Hardware Marketplace & Auditing System
 
 ---
 
@@ -12,12 +8,12 @@
 **RoboMarket AI**  
 
 ### Project Tagline
-*A Cognitive, Server-Side AI-Audited Marketplace and Decision-Support Ecosystem for Autonomous Hardware and Industrial Robotics Procurements.*
+*A Cognitive, AI-Audited Marketplace and Decision-Support Ecosystem for Autonomous Hardware and Industrial Robotics Procurements.*
 
 ### Academic Abstract
 In the contemporary robotics industry, hardware procurement remains plagued by high capital risks, informational asymmetry, and fraudulent or unverified listings. Researchers, medical institutions, and manufacturing plants routinely purchase multi-thousand-dollar robotic platforms (such as bipedal humanoids, industrial 6-axis arms, or clinical rovers) based on specifications that are inconsistent, poorly formatted, or intentionally exaggerated.
 
-**RoboMarket AI** addresses this paradigm by introducing an intelligent, full-stack, server-side transaction and decision-support portal. By embedding the **Gemini 3.5 Flash LLM** natively into our API gateway, we implement autonomous physical parameter checking (evaluating pricing vs. mechanical capacities), real-time interactive technical consultancy, and advanced natural language semantic catalog query mapping.
+**RoboMarket AI** addresses this paradigm by introducing an intelligent, full-stack, and decision-support portal. By embedding the **Gemini 3.5 Flash LLM** natively into our API gateway, we implement autonomous physical parameter checking (evaluating pricing vs. mechanical capacities), real-time interactive technical consultancy, and advanced natural language semantic catalog query mapping.
 
 ```
 +------------------------------------------------------------------------+
@@ -57,8 +53,7 @@ In the contemporary robotics industry, hardware procurement remains plagued by h
 For active inspection, testing, and grading, please reference the following live project nodes:
 
 - **🔴 LIVE Deployed Vercel URL:** [https://robomarket-ai-vjiu.vercel.app](https://robomarket-ai-vjiu.vercel.app) *(Active Production Node)*
-- **🖥️ Development Live App URL:** [https://ais-dev-nscpkpdbypwvkkjqkca6hz-945679076817.asia-southeast1.run.app](https://ais-dev-nscpkpdbypwvkkjqkca6hz-945679076817.asia-southeast1.run.app) *(AI Studio Cloud Run Development Sandbox)*
-- **📦 GitHub Repository Link:** [https://github.com/academic-student/robomarket-ai-capstone](https://github.com/academic-student/robomarket-ai-capstone) *(Academic Verification Repository)*
+- ** Video link:- 
 
 ---
 
@@ -284,16 +279,6 @@ npm run build
 This single compilation command:
 1. Triggers the Vite optimizer to build public client-side bundle assets into `/dist/`.
 2. Invokes **esbuild** to compile, bundle, and tree-shake the server-side TypeScript entrypoint into a single self-contained `/dist/server.cjs` file, ready for high-performance serverless deployment.
-
----
-
-## 8. Academic Evaluation Checklist & Grading Points
-This Capstone project directly showcases competence in the following advanced computing fields:
-- [x] **Full-Stack Decoupled Architecture:** Seamless integration of Node/Express backend serving client-side SPAs.
-- [x] **Large Language Model Integrations:** Native implementation of strict JSON schemas via Gemini model options to secure backend operations.
-- [x] **Asynchronous Flow Orchestration:** Background tracking of simulated shipping logistics and automatic sandboxed merchant response loops.
-- [x] **Role-Based Security:** Sandbox security structure simulating distinct Administrator, Buyer, and Seller permissions.
-- [x] **Advanced Responsive Design:** CSS layout transitions, fully responsive mobile side drawers, and high-performance, accessible touch targets.
 
 ---
 *Created for the CS Senior Capstone Presentation. Evaluated and approved by the Faculty Department of Computing and Robotics Engineering.*
