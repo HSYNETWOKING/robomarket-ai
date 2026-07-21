@@ -2,12 +2,8 @@
 
 ---
 Hassan Shahbaz ACT AI
-<<<<<<< HEAD
 University of Education
 https://robomarket-ai-vjiu.vercel.app/
-=======
-University of Education.
->>>>>>> 67bce092d073a19f919cc10ba3b4b70748e0aa7a
 
 ## 1. Executive Summary & Core Paradigm
 
