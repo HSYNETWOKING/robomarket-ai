@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Sparkles, SlidersHorizontal, ArrowUpDown, Filter, RefreshCw, HelpCircle } from 'lucide-react';
+import { Search, Sparkles, SlidersHorizontal, ArrowUpDown, Filter, RefreshCw, HelpCircle, AlertCircle } from 'lucide-react';
 import { Robot } from '../types';
 import RobotCard from './RobotCard';
 
@@ -10,6 +10,7 @@ interface MarketplaceProps {
   onToggleWishlist: (id: string) => void;
   onToggleCompare: (id: string) => void;
   onSelectRobot: (id: string) => void;
+  hasGeminiKey?: boolean | null;
 }
 
 const CATEGORIES = [
@@ -22,7 +23,8 @@ export default function Marketplace({
   compareList,
   onToggleWishlist,
   onToggleCompare,
-  onSelectRobot
+  onSelectRobot,
+  hasGeminiKey
 }: MarketplaceProps) {
   // Filter & Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,18 +58,40 @@ export default function Marketplace({
         body: JSON.stringify({ query: searchQuery })
       });
 
-      if (!response.ok) {
-        throw new Error('AI Search index disconnected. Try again.');
+      let responseData: any = null;
+      try {
+        responseData = await response.json();
+      } catch (e) {
+        // Not JSON
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errMsg = responseData?.error || responseData?.message || '';
+        if (errMsg.includes('GEMINI_API_KEY') || errMsg.includes('API key')) {
+          throw new Error('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+        }
+        throw new Error(errMsg || `AI Search failed with status ${response.status}.`);
+      }
+
+      const data = responseData;
+      if (!data) {
+        throw new Error('Failed to parse response from AI Search.');
+      }
       if (data.error) {
+        if (data.error.includes('GEMINI_API_KEY') || data.error.includes('API key')) {
+          throw new Error('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+        }
         throw new Error(data.error);
       }
 
       setAiSearchResult(data);
     } catch (err: any) {
-      setAiSearchError(err.message || 'Error executing AI search logic.');
+      const msg = err.message || '';
+      if (msg.includes('GEMINI_API_KEY') || msg.includes('API key')) {
+        setAiSearchError('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+      } else {
+        setAiSearchError(err.message || 'Error executing AI search logic.');
+      }
     } finally {
       setIsAiLoading(false);
     }
@@ -193,6 +217,17 @@ export default function Marketplace({
               <HelpCircle className="h-3.5 w-3.5" />
               <span>Our AI parses pricing, intent, payload limits and matches database listings directly with explaining reasoning.</span>
             </p>
+          )}
+
+          {/* Gemini API Key Missing Warn block for Smart AI Search */}
+          {useAISearch && hasGeminiKey === false && (
+            <div className="mt-3 p-3.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-xl text-amber-850 dark:text-amber-400 text-xs flex items-start space-x-2.5 shadow-sm" id="gemini-key-missing-marketplace">
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold text-amber-900 dark:text-amber-350 block mb-0.5">Gemini API Key Missing</span>
+                <span>The <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded font-mono text-[10px]">GEMINI_API_KEY</code> key is missing. Smart AI Search operates in offline local simulation mode. Configure key in <strong>Settings &gt; Secrets</strong> to enable active live Gemini catalog semantic queries.</span>
+              </div>
+            </div>
           )}
         </div>
 

@@ -41,6 +41,9 @@ export default function App() {
   // Direct Message states
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
+  // Gemini API Key availability state
+  const [hasGeminiKey, setHasGeminiKey] = useState<boolean | null>(null);
+
   // Fetch all robots from backend
   const fetchRobots = async () => {
     setLoadingRobots(true);
@@ -60,6 +63,16 @@ export default function App() {
 
   useEffect(() => {
     fetchRobots();
+
+    // Check if Gemini API key is configured
+    fetch('/api/ai/status')
+      .then(res => res.json())
+      .then(data => {
+        setHasGeminiKey(data.hasGeminiKey);
+      })
+      .catch(() => {
+        setHasGeminiKey(false);
+      });
     
     // Load session and local storage caches securely
     const token = localStorage.getItem('robo_token');
@@ -324,6 +337,7 @@ export default function App() {
                 onInitiateChat={handleInitiateChat}
                 onPlaceOrder={() => fetchRobots()}
                 onReviewSubmitted={handleReviewSubmitted}
+                hasGeminiKey={hasGeminiKey}
               />
             ) : (
               <div className="p-8 text-center text-zinc-400">Robot profile not found.</div>
@@ -570,6 +584,7 @@ export default function App() {
                     onToggleWishlist={toggleWishlist}
                     onToggleCompare={toggleCompare}
                     onSelectRobot={setSelectedRobotId}
+                    hasGeminiKey={hasGeminiKey}
                   />
                 );
 
@@ -581,6 +596,7 @@ export default function App() {
                     onRemoveFromCompare={handleRemoveFromCompare}
                     onClearCompare={handleClearCompare}
                     onSelectRobot={setSelectedRobotId}
+                    hasGeminiKey={hasGeminiKey}
                   />
                 );
 
@@ -597,6 +613,7 @@ export default function App() {
                 return (
                   <AIAssistant
                     onViewRobot={setSelectedRobotId}
+                    hasGeminiKey={hasGeminiKey}
                   />
                 );
 
@@ -897,7 +914,8 @@ export default function App() {
       )}
 
       {/* Global Footer with brand mission, columns, social and legal links */}
-      <footer className="border-t border-zinc-250 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-550 dark:text-zinc-400 transition-colors duration-200">
+      {activeTab !== 'ai-assistant' && activeTab !== 'inbox' && (
+        <footer className="border-t border-zinc-250 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-550 dark:text-zinc-400 transition-colors duration-200">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
           
           {/* Column 1: Brand & Mission */}
@@ -998,6 +1016,7 @@ export default function App() {
           <p className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500 pt-1">© 2026 RoboMarket AI Core. All Rights Reserved.</p>
         </div>
       </footer>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ interface Message {
 
 interface AIAssistantProps {
   onViewRobot: (id: string) => void;
+  hasGeminiKey?: boolean | null;
 }
 
 const QUICK_PROMPTS = [
@@ -29,7 +30,7 @@ const QUICK_PROMPTS = [
   }
 ];
 
-export default function AIAssistant({ onViewRobot }: AIAssistantProps) {
+export default function AIAssistant({ onViewRobot, hasGeminiKey }: AIAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'model',
@@ -63,18 +64,40 @@ export default function AIAssistant({ onViewRobot }: AIAssistantProps) {
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Advisor link failed. Please check network.');
+      let responseData: any = null;
+      try {
+        responseData = await response.json();
+      } catch (e) {
+        // Not JSON
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errMsg = responseData?.error || responseData?.message || '';
+        if (errMsg.includes('GEMINI_API_KEY') || errMsg.includes('API key')) {
+          throw new Error('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+        }
+        throw new Error(errMsg || `Advisor link failed with status ${response.status}.`);
+      }
+
+      const data = responseData;
+      if (!data) {
+        throw new Error('Failed to parse response from Advisor.');
+      }
       if (data.error) {
+        if (data.error.includes('GEMINI_API_KEY') || data.error.includes('API key')) {
+          throw new Error('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+        }
         throw new Error(data.error);
       }
 
       setMessages(prev => [...prev, { role: 'model', content: data.content || 'I could not synthesize a response.' }]);
     } catch (err: any) {
-      setError(err.message || 'Communication interruption with core neural net.');
+      const msg = err.message || '';
+      if (msg.includes('GEMINI_API_KEY') || msg.includes('API key')) {
+        setError('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+      } else {
+        setError(err.message || 'Communication interruption with core neural net.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -200,6 +223,20 @@ export default function AIAssistant({ onViewRobot }: AIAssistantProps) {
         {/* Messages feed */}
         <div className="lg:col-span-3 flex flex-col h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {hasGeminiKey === false && (
+              <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-amber-850 dark:text-amber-400 text-sm flex items-start space-x-3 shadow-sm" id="gemini-key-missing-assistant">
+                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="font-semibold text-amber-900 dark:text-amber-350">Gemini API Key Missing</h4>
+                  <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-400/80">
+                    The <code className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 rounded font-mono text-[11px]">GEMINI_API_KEY</code> environment variable is not configured. 
+                    The Technical Advisor is running in offline local simulation mode. 
+                    Please configure your key in <strong>Settings &gt; Secrets</strong> to enable active Live Gemini 3.5 Flash queries.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {messages.map((msg, i) => (
               <div key={i} className="space-y-4">
                 <div
@@ -300,7 +337,7 @@ export default function AIAssistant({ onViewRobot }: AIAssistantProps) {
         </div>
 
         {/* Quick Help & Guidelines Column */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:overflow-y-auto lg:max-h-full pb-6 pr-1">
           <div className="p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
             <h2 className="text-xs font-bold font-mono tracking-wider text-blue-700 dark:text-blue-400 uppercase flex items-center space-x-1.5 mb-3">
               <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 animate-pulse" />

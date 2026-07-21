@@ -56,7 +56,7 @@ In the contemporary robotics industry, hardware procurement remains plagued by h
 
 For active inspection, testing, and grading, please reference the following live project nodes:
 
-- **🔴 LIVE Deployed Vercel URL:** [https://robomarket-ai.vercel.app](https://robomarket-ai.vercel.app) *(Working Production Blueprint Redirect)*
+- **🔴 LIVE Deployed Vercel URL:** [https://robomarket-ai-vjiu.vercel.app](https://robomarket-ai-vjiu.vercel.app) *(Active Production Node)*
 - **🖥️ Development Live App URL:** [https://ais-dev-nscpkpdbypwvkkjqkca6hz-945679076817.asia-southeast1.run.app](https://ais-dev-nscpkpdbypwvkkjqkca6hz-945679076817.asia-southeast1.run.app) *(AI Studio Cloud Run Development Sandbox)*
 - **📦 GitHub Repository Link:** [https://github.com/academic-student/robomarket-ai-capstone](https://github.com/academic-student/robomarket-ai-capstone) *(Academic Verification Repository)*
 

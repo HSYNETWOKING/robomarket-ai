@@ -9,6 +9,7 @@ interface RobotDetailsProps {
   onInitiateChat: (sellerId: string, sellerName: string, robotId: string, robotName: string) => void;
   onPlaceOrder: (robotId: string) => void;
   onReviewSubmitted: (updatedRobot: Robot) => void;
+  hasGeminiKey?: boolean | null;
 }
 
 export default function RobotDetails({
@@ -17,7 +18,8 @@ export default function RobotDetails({
   onBack,
   onInitiateChat,
   onPlaceOrder,
-  onReviewSubmitted
+  onReviewSubmitted,
+  hasGeminiKey
 }: RobotDetailsProps) {
   // Review form state
   const [rating, setRating] = useState(5);
@@ -83,18 +85,40 @@ export default function RobotDetails({
         body: JSON.stringify({ robotId: robot.id })
       });
 
-      if (!response.ok) {
-        throw new Error('Listing Analyzer socket timed out.');
+      let responseData: any = null;
+      try {
+        responseData = await response.json();
+      } catch (e) {
+        // Not JSON
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errMsg = responseData?.error || responseData?.message || '';
+        if (errMsg.includes('GEMINI_API_KEY') || errMsg.includes('API key')) {
+          throw new Error('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+        }
+        throw new Error(errMsg || `Listing Analyzer failed with status ${response.status}.`);
+      }
+
+      const data = responseData;
+      if (!data) {
+        throw new Error('Failed to parse response from Listing Analyzer.');
+      }
       if (data.error) {
+        if (data.error.includes('GEMINI_API_KEY') || data.error.includes('API key')) {
+          throw new Error('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+        }
         throw new Error(data.error);
       }
 
       setAiAnalysisResult(data);
     } catch (err: any) {
-      setAiAnalysisError(err.message || 'Error processing AI security metrics.');
+      const msg = err.message || '';
+      if (msg.includes('GEMINI_API_KEY') || msg.includes('API key')) {
+        setAiAnalysisError('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+      } else {
+        setAiAnalysisError(err.message || 'Error processing AI security metrics.');
+      }
     } finally {
       setIsAiAnalyzing(false);
     }
@@ -380,6 +404,16 @@ export default function RobotDetails({
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 Run an autonomous scan of this listing's text consistency, pricing logic, specification accuracy, and risk rating flags.
               </p>
+
+              {hasGeminiKey === false && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-xl text-amber-850 dark:text-amber-400 text-[11px] flex items-start space-x-2 shadow-sm" id="gemini-key-missing-details">
+                  <ShieldAlert className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-amber-900 dark:text-amber-350 block mb-0.5">Gemini API Key Missing</span>
+                    <span>The <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded font-mono text-[10px]">GEMINI_API_KEY</code> is missing. Run audit acts in local simulation mode. Configure key in <strong>Settings &gt; Secrets</strong> to enable live Gemini scans.</span>
+                  </div>
+                </div>
+              )}
 
               {!aiAnalysisResult && !isAiAnalyzing && (
                 <button

@@ -8,6 +8,7 @@ interface CompareRobotsProps {
   onRemoveFromCompare: (id: string) => void;
   onClearCompare: () => void;
   onSelectRobot: (id: string) => void;
+  hasGeminiKey?: boolean | null;
 }
 
 export default function CompareRobots({
@@ -15,7 +16,8 @@ export default function CompareRobots({
   compareIds,
   onRemoveFromCompare,
   onClearCompare,
-  onSelectRobot
+  onSelectRobot,
+  hasGeminiKey
 }: CompareRobotsProps) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -53,18 +55,40 @@ export default function CompareRobots({
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Specs Explainer socket error. Please try again.');
+      let responseData: any = null;
+      try {
+        responseData = await response.json();
+      } catch (e) {
+        // Not JSON
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errMsg = responseData?.error || responseData?.message || '';
+        if (errMsg.includes('GEMINI_API_KEY') || errMsg.includes('API key')) {
+          throw new Error('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+        }
+        throw new Error(errMsg || `Specs Explainer failed with status ${response.status}.`);
+      }
+
+      const data = responseData;
+      if (!data) {
+        throw new Error('Failed to parse response from Specs Explainer.');
+      }
       if (data.error) {
+        if (data.error.includes('GEMINI_API_KEY') || data.error.includes('API key')) {
+          throw new Error('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+        }
         throw new Error(data.error);
       }
 
       setAiAnalysis(data.content);
     } catch (err: any) {
-      setAiError(err.message || 'Error compiling AI comparative metrics.');
+      const msg = err.message || '';
+      if (msg.includes('GEMINI_API_KEY') || msg.includes('API key')) {
+        setAiError('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
+      } else {
+        setAiError(err.message || 'Error compiling AI comparative metrics.');
+      }
     } finally {
       setAiLoading(false);
     }
@@ -281,6 +305,16 @@ export default function CompareRobots({
             <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-4xl">
               Synthesize these specifications into simplified English. Our AI analyzes the differences, explains the trade-offs, evaluates if pricing fits performance payloads, and recommends which unit works best for your specific application.
             </p>
+
+            {hasGeminiKey === false && (
+              <div className="p-3.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-xl text-amber-850 dark:text-amber-400 text-xs flex items-start space-x-2.5 max-w-4xl" id="gemini-key-missing-compare">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-amber-900 dark:text-amber-350 block mb-0.5">Gemini API Key Missing</span>
+                  <span>The <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded font-mono text-[10px]">GEMINI_API_KEY</code> key is missing. The Specs Explainer is in offline local simulation mode. Add your key in <strong>Settings &gt; Secrets</strong> to enable live Gemini generation.</span>
+                </div>
+              </div>
+            )}
 
             {!aiAnalysis && !aiLoading && (
               <button

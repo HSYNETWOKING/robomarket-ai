@@ -524,6 +524,29 @@ app.post("/api/chats/:id/messages", (req, res) => {
 
 // GEMINI AI ENDPOINTS
 
+function formatAiError(err: any): string {
+  const errMsg = err?.message || String(err || '');
+  if (
+    errMsg.includes("503") ||
+    errMsg.includes("UNAVAILABLE") ||
+    errMsg.includes("high demand") ||
+    errMsg.includes("overloaded") ||
+    errMsg.includes("capacity") ||
+    errMsg.includes("rate limit") ||
+    errMsg.includes("429")
+  ) {
+    return "The Gemini API service is currently experiencing high demand or is temporarily unavailable (503 Service Unavailable). Please wait a moment and try again.";
+  }
+  return errMsg;
+}
+
+// API STATUS CHECK
+app.get("/api/ai/status", (req, res) => {
+  res.json({
+    hasGeminiKey: !!process.env.GEMINI_API_KEY
+  });
+});
+
 // 1. AI ADVISOR CHAT API
 app.post("/api/ai/chat", async (req, res) => {
   const { messages } = req.body; // Array of { role: 'user' | 'model', content: string }
@@ -570,7 +593,7 @@ CRITICAL INSTRUCTIONS:
     res.json({ content: response.text });
   } catch (err: any) {
     console.error("AI Advisor error:", err);
-    res.status(500).json({ error: "Failed to communicate with AI Advisor: " + (err.message || err) });
+    res.status(500).json({ error: formatAiError(err) });
   }
 });
 
@@ -632,7 +655,7 @@ ${JSON.stringify(robotsBrief, null, 2)}`;
     res.json(parsed);
   } catch (err: any) {
     console.error("AI Search Error:", err);
-    res.status(500).json({ error: "AI search failed: " + (err.message || err) });
+    res.status(500).json({ error: formatAiError(err) });
   }
 });
 
@@ -705,7 +728,7 @@ Specifications: ${JSON.stringify(robot.specs, null, 2)}`;
     res.json(parsed);
   } catch (err: any) {
     console.error("AI analyzer error:", err);
-    res.status(500).json({ error: "AI listing analysis failed: " + (err.message || err) });
+    res.status(500).json({ error: formatAiError(err) });
   }
 });
 
