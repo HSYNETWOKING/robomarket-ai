@@ -282,12 +282,5 @@ This single compilation command:
 1. Triggers the Vite optimizer to build public client-side bundle assets into `/dist/`.
 2. Invokes **esbuild** to compile, bundle, and tree-shake the server-side TypeScript entrypoint into a single self-contained `/dist/server.cjs` file, ready for high-performance serverless deployment.
 
----
 
-## 8. Academic Evaluation Checklist & Grading Points
-This Capstone project directly showcases competence in the following advanced computing fields:
-- [x] **Full-Stack Decoupled Architecture:** Seamless integration of Node/Express backend serving client-side SPAs.
-- [x] **Large Language Model Integrations:** Native implementation of strict JSON schemas via Gemini model options to secure backend operations.
-- [x] **Asynchronous Flow Orchestration:** Background tracking of simulated shipping logistics and automatic sandboxed merchant response loops.
-- [x] **Role-Based Security:** Sandbox security structure simulating distinct Administrator, Buyer, and Seller permissions.
-- [x] **Advanced Responsive Design:** CSS layout transitions, fully responsive mobile side drawers, and high-performance, accessible touch targets.
+- [x] **Role-Based Security:** Sandbox security structure simulating distinct Administrator, Buyer, and Seller permissions.- [x] **Advanced Responsive Design:** CSS layout transitions, fully responsive mobile side drawers, and high-performance, accessible touch targets.
