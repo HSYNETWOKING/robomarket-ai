@@ -1,18 +1,14 @@
 # RoboMarket AI — Next-Gen Cognitive Autonomous Hardware Marketplace & Web3 SaaS Ecosystem
 
 ---
-<<<<<<< HEAD
-Hassan Shahbaz, ACT AI, University of Education
-https://robomarket-ai-vjiu.vercel.app/
-- **🖥️ Video URL:** https://drive.google.com/drive/folders/1XtP_ohsJtnvpV6SeKOklliNQ9Hr8sLj1
-## 1. Executive Summary & SaaS Architecture Paradigm
-=======
-Hassan Shahbaz ACT AI
-University of Education
-https://robomarket-ai-vjiu.vercel.app/
 
-## 1. Executive Summary & Core Paradigm
->>>>>>> 29ffafdb01f3317674210529714ed13ee2293fd6
+### 📌 Project Quick Links & Author Details
+- **👤 Author:** Hassan Shahbaz (ACT AI, University of Education)
+- **🌐 Public Live App (Vercel):** [https://robomarket-ai-vjiu.vercel.app/](https://robomarket-ai-vjiu.vercel.app/)
+- **🖥️ Video Walkthrough & Demo:** [Google Drive Video Folder](https://drive.google.com/drive/folders/1XtP_ohsJtnvpV6SeKOklliNQ9Hr8sLj1)
+
+---
+## 1. Executive Summary & SaaS Architecture Paradigm
 
 ### Project Title
 **RoboMarket AI**
