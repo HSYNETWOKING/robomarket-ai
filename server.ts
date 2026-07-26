@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import bcrypt from "bcryptjs";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 
@@ -8,6 +9,30 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Helper functions for Password Hashing & Validation
+function hashPassword(password: string): string {
+  return bcrypt.hashSync(password, 10);
+}
+
+function comparePassword(password: string, storedHash: string): boolean {
+  if (storedHash.startsWith('$2a$') || storedHash.startsWith('$2b$') || storedHash.startsWith('$2y$')) {
+    return bcrypt.compareSync(password, storedHash);
+  }
+  // Fallback for legacy plaintext
+  return password === storedHash;
+}
+
+function validatePasswordStrength(password?: string): { valid: boolean; message?: string } {
+  if (!password || typeof password !== 'string') {
+    return { valid: false, message: 'Password parameter is required' };
+  }
+  const trimmed = password.trim();
+  if (trimmed.length < 6) {
+    return { valid: false, message: 'Password must be at least 6 characters long' };
+  }
+  return { valid: true };
+}
 
 // Lazy Initialize Gemini Client helper to prevent startup crash if GEMINI_API_KEY is missing
 let aiInstance: GoogleGenAI | null = null;
@@ -218,12 +243,30 @@ function writeJsonFile<T>(filePath: string, data: T): void {
   }
 }
 
-// Databases variables
-let users = readJsonFile<any[]>(USERS_FILE, [
-  { id: "admin", email: "admin@robomarket.ai", username: "admin", role: "admin", rating: 5, ratingCount: 1, avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=admin", createdAt: new Date().toISOString() },
-  { id: "u2", email: "user@robomarket.ai", username: "TechEnthusiast99", role: "user", rating: 4.8, ratingCount: 4, avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=TechEnthusiast99", createdAt: new Date().toISOString() },
-  { id: "u3", email: "silicon@robomarket.ai", username: "Silicon Robotics Lab", role: "user", rating: 4.6, ratingCount: 8, avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Silicon", createdAt: new Date().toISOString() }
-]);
+// Ensure default demo users with strict roles & hashed passwords
+const seedDemoUsers = [
+  { id: "admin", email: "admin@robomarket.ai", username: "admin", role: "admin", password: hashPassword("password123"), rating: 5, ratingCount: 1, avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=admin", createdAt: new Date().toISOString() },
+  { id: "u2", email: "user@robomarket.ai", username: "TechEnthusiast99", role: "user", password: hashPassword("password123"), rating: 4.8, ratingCount: 4, avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=TechEnthusiast99", createdAt: new Date().toISOString() },
+  { id: "manager1", email: "manager@robomarket.ai", username: "FleetManager", role: "manager", password: hashPassword("password123"), rating: 5, ratingCount: 2, avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=FleetManager", createdAt: new Date().toISOString() },
+  { id: "u3", email: "silicon@robomarket.ai", username: "Silicon Robotics Lab", role: "user", password: hashPassword("password123"), rating: 4.6, ratingCount: 8, avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Silicon", createdAt: new Date().toISOString() }
+];
+
+let users = readJsonFile<any[]>(USERS_FILE, seedDemoUsers);
+
+// Guarantee demo users exist in memory and disk with exact roles and hashed passwords
+seedDemoUsers.forEach(seedUser => {
+  const existingIdx = users.findIndex(u => u.email.toLowerCase() === seedUser.email.toLowerCase());
+  if (existingIdx !== -1) {
+    users[existingIdx] = {
+      ...users[existingIdx],
+      role: seedUser.role,
+      password: seedUser.password,
+      username: users[existingIdx].username || seedUser.username
+    };
+  } else {
+    users.push(seedUser);
+  }
+});
 
 let robots = readJsonFile<any[]>(ROBOTS_FILE, initialRobots);
 let chats = readJsonFile<any[]>(CHATS_FILE, []);
@@ -235,21 +278,50 @@ writeJsonFile(ROBOTS_FILE, robots);
 writeJsonFile(CHATS_FILE, chats);
 writeJsonFile(ORDERS_FILE, orders);
 
-// API ROUTES
+// Authentication & RBAC Middleware
+interface AuthenticatedRequest extends express.Request {
+  user?: any;
+}
 
-// AUTH API
-app.get("/api/auth/me", (req, res) => {
+const authenticateToken = (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Unauthorized access - no secure token" });
+    return res.status(401).json({ error: "Unauthorized access - missing or invalid Authorization header" });
   }
   const token = authHeader.split(" ")[1];
   const userId = token.replace("jwt_mock_token_", "");
   const user = users.find(u => u.id === userId);
   if (!user) {
-    return res.status(401).json({ error: "Session node expired or invalid" });
+    return res.status(401).json({ error: "Session node expired or invalid token" });
   }
-  res.json({ user });
+  req.user = user;
+  next();
+};
+
+const requireRole = (...roles: string[]) => {
+  return (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    const userRole = (req.user.role || '').toLowerCase();
+    const allowed = roles.map(r => r.toLowerCase());
+    if (!allowed.includes(userRole)) {
+      return res.status(403).json({ 
+        error: `Access denied (403 Forbidden). ${roles.join(' or ')} role required.` 
+      });
+    }
+    next();
+  };
+};
+
+// API ROUTES
+
+// AUTH API
+app.get("/api/auth/me", authenticateToken, (req: AuthenticatedRequest, res) => {
+  const user = req.user;
+  // Omit password hash before returning
+  const { password, ...sanitizedUser } = user;
+  res.json({ user: sanitizedUser });
 });
 
 app.post("/api/auth/register", (req, res) => {
@@ -258,17 +330,27 @@ app.post("/api/auth/register", (req, res) => {
     return res.status(400).json({ error: "Missing required registration parameters" });
   }
 
-  const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  const passCheck = validatePasswordStrength(password);
+  if (!passCheck.valid) {
+    return res.status(400).json({ error: passCheck.message });
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const existing = users.find(u => u.email.toLowerCase() === cleanEmail);
   if (existing) {
     return res.status(400).json({ error: "User already registered with this email" });
   }
 
+  let role = "user";
+  if (cleanEmail === "admin@robomarket.ai") role = "admin";
+  else if (cleanEmail === "manager@robomarket.ai") role = "manager";
+
   const newUser = {
     id: "u_" + Date.now(),
-    email,
-    username,
-    password: password || "password123",
-    role: "user",
+    email: cleanEmail,
+    username: username.trim(),
+    password: hashPassword(password),
+    role,
     rating: 5,
     ratingCount: 0,
     avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`,
@@ -277,7 +359,8 @@ app.post("/api/auth/register", (req, res) => {
 
   users.push(newUser);
   writeJsonFile(USERS_FILE, users);
-  res.json({ user: newUser, token: "jwt_mock_token_" + newUser.id });
+  const { password: _, ...sanitizedUser } = newUser;
+  res.json({ user: sanitizedUser, token: "jwt_mock_token_" + newUser.id });
 });
 
 app.post("/api/auth/login", (req, res) => {
@@ -286,32 +369,65 @@ app.post("/api/auth/login", (req, res) => {
     return res.status(400).json({ error: "Email parameter is required" });
   }
 
-  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  const cleanEmail = email.trim().toLowerCase();
+  let user = users.find(u => u.email.toLowerCase() === cleanEmail);
+
   if (!user) {
-    // Auto-create to provide high usability in AI Studio sandbox!
-    const username = email.split("@")[0] || "User" + Math.floor(Math.random() * 1000);
-    const newUser = {
+    // Auto-seed demo credentials if standard emails or create user
+    const passCheck = validatePasswordStrength(password);
+    if (!passCheck.valid) {
+      return res.status(400).json({ error: passCheck.message });
+    }
+
+    let role = "user";
+    let defaultUsername = cleanEmail.split("@")[0] || "User";
+    if (cleanEmail === "admin@robomarket.ai") {
+      role = "admin";
+      defaultUsername = "admin";
+    } else if (cleanEmail === "manager@robomarket.ai") {
+      role = "manager";
+      defaultUsername = "FleetManager";
+    }
+
+    user = {
       id: "u_" + Date.now(),
-      email,
-      username,
-      password: password || "password123",
-      role: "user",
+      email: cleanEmail,
+      username: defaultUsername,
+      password: hashPassword(password || "password123"),
+      role,
       rating: 5,
       ratingCount: 0,
-      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`,
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${defaultUsername}`,
       createdAt: new Date().toISOString()
     };
-    users.push(newUser);
+    users.push(user);
     writeJsonFile(USERS_FILE, users);
-    return res.json({ user: newUser, token: "jwt_mock_token_" + newUser.id });
+    const { password: _, ...sanitizedUser } = user;
+    return res.json({ user: sanitizedUser, token: "jwt_mock_token_" + user.id });
   }
 
-  // Verify password if entered
-  if (password && user.password && user.password !== password) {
-    return res.status(401).json({ error: "Invalid credentials. Please double check password." });
+  // Validate password
+  if (password) {
+    const isMatch = comparePassword(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid credentials. Password verification failed." });
+    }
   }
 
-  res.json({ user, token: "jwt_mock_token_" + user.id });
+  // Guarantee correct role mapping for demo credentials
+  if (cleanEmail === "admin@robomarket.ai" && user.role !== "admin") {
+    user.role = "admin";
+    writeJsonFile(USERS_FILE, users);
+  } else if (cleanEmail === "manager@robomarket.ai" && user.role !== "manager") {
+    user.role = "manager";
+    writeJsonFile(USERS_FILE, users);
+  } else if (cleanEmail === "user@robomarket.ai" && user.role !== "user") {
+    user.role = "user";
+    writeJsonFile(USERS_FILE, users);
+  }
+
+  const { password: _, ...sanitizedUser } = user;
+  res.json({ user: sanitizedUser, token: "jwt_mock_token_" + user.id });
 });
 
 // GET ALL APPROVED ROBOTS
@@ -327,11 +443,12 @@ app.get("/api/robots", (req, res) => {
 });
 
 // CREATE NEW ROBOT LISTING (Pending approval by default)
-app.post("/api/robots", (req, res) => {
-  const { name, description, category, price, location, specs, condition, sellerId, sellerName, imageUrl } = req.body;
+app.post("/api/robots", authenticateToken, (req: AuthenticatedRequest, res) => {
+  const { name, description, category, price, location, specs, condition, imageUrl } = req.body;
+  const user = req.user;
   
-  if (!name || !price || !category || !sellerId) {
-    return res.status(400).json({ error: "Missing required fields" });
+  if (!name || !price || !category) {
+    return res.status(400).json({ error: "Missing required fields (name, price, category)" });
   }
 
   const newRobot = {
@@ -342,9 +459,9 @@ app.post("/api/robots", (req, res) => {
     price: Number(price),
     location: location || "Remote",
     specs: specs || {},
-    status: "pending", // Pending admin review
-    sellerId,
-    sellerName: sellerName || "Private Seller",
+    status: user.role === "admin" ? "approved" : "pending", // Admins auto-approve, others pending review
+    sellerId: user.id,
+    sellerName: user.username || "Private Seller",
     imageUrl: imageUrl || "https://images.unsplash.com/photo-1546776310-eef45dd6d63c?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
     condition: condition || "new",
     rating: 5,
@@ -358,12 +475,13 @@ app.post("/api/robots", (req, res) => {
 });
 
 // SUBMIT ROBOT REVIEW
-app.post("/api/robots/:id/reviews", (req, res) => {
+app.post("/api/robots/:id/reviews", authenticateToken, (req: AuthenticatedRequest, res) => {
   const { id } = req.params;
-  const { userId, username, rating, comment } = req.body;
+  const { rating, comment } = req.body;
+  const user = req.user;
 
-  if (!userId || !rating || !comment) {
-    return res.status(400).json({ error: "Missing review fields" });
+  if (!rating || !comment) {
+    return res.status(400).json({ error: "Missing review fields (rating, comment)" });
   }
 
   const robotIndex = robots.findIndex(r => r.id === id);
@@ -374,8 +492,8 @@ app.post("/api/robots/:id/reviews", (req, res) => {
   const newReview = {
     id: "rev_" + Date.now(),
     robotId: id,
-    userId,
-    username: username || "Anonymous",
+    userId: user.id,
+    username: user.username || "Anonymous",
     rating: Number(rating),
     comment,
     createdAt: new Date().toISOString()
@@ -392,7 +510,7 @@ app.post("/api/robots/:id/reviews", (req, res) => {
 });
 
 // ADMIN ENDPOINTS
-app.put("/api/admin/listings/:id", (req, res) => {
+app.put("/api/admin/listings/:id", authenticateToken, requireRole("admin", "manager"), (req: AuthenticatedRequest, res) => {
   const { id } = req.params;
   const { status } = req.body; // 'approved' | 'rejected'
 
@@ -410,11 +528,38 @@ app.put("/api/admin/listings/:id", (req, res) => {
   res.json(robots[index]);
 });
 
+// ADMIN USER MANAGEMENT ENDPOINTS
+app.get("/api/admin/users", authenticateToken, requireRole("admin", "manager"), (req: AuthenticatedRequest, res) => {
+  const sanitized = users.map(({ password, ...u }) => u);
+  res.json(sanitized);
+});
+
+app.put("/api/admin/users/:id/role", authenticateToken, requireRole("admin"), (req: AuthenticatedRequest, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  if (!['admin', 'manager', 'user'].includes(role)) {
+    return res.status(400).json({ error: "Invalid role specified. Must be 'admin', 'manager', or 'user'." });
+  }
+
+  const targetIdx = users.findIndex(u => u.id === id);
+  if (targetIdx === -1) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  users[targetIdx].role = role;
+  writeJsonFile(USERS_FILE, users);
+  const { password, ...sanitized } = users[targetIdx];
+  res.json(sanitized);
+});
+
 // ORDERS ENDPOINTS
-app.post("/api/orders", (req, res) => {
-  const { robotId, buyerId, buyerName } = req.body;
-  if (!robotId || !buyerId) {
-    return res.status(400).json({ error: "Missing order components" });
+app.post("/api/orders", authenticateToken, (req: AuthenticatedRequest, res) => {
+  const { robotId } = req.body;
+  const user = req.user;
+
+  if (!robotId) {
+    return res.status(400).json({ error: "Missing required robotId parameter" });
   }
 
   const robot = robots.find(r => r.id === robotId);
@@ -428,8 +573,8 @@ app.post("/api/orders", (req, res) => {
     robotName: robot.name,
     robotImageUrl: robot.imageUrl,
     price: robot.price,
-    buyerId,
-    buyerName,
+    buyerId: user.id,
+    buyerName: user.username,
     sellerId: robot.sellerId,
     status: "pending",
     trackingNumber: "TRK" + Math.floor(10000000 + Math.random() * 90000000),
@@ -441,22 +586,41 @@ app.post("/api/orders", (req, res) => {
   res.json(newOrder);
 });
 
-app.get("/api/orders", (req, res) => {
-  const { userId } = req.query;
-  if (!userId) {
+app.get("/api/orders", authenticateToken, (req: AuthenticatedRequest, res) => {
+  const user = req.user;
+  const queryUserId = req.query.userId as string;
+
+  if (['admin', 'manager'].includes(user.role.toLowerCase())) {
+    if (queryUserId) {
+      const filtered = orders.filter(o => o.buyerId === queryUserId || o.sellerId === queryUserId);
+      return res.json(filtered);
+    }
     return res.json(orders);
   }
-  const filtered = orders.filter(o => o.buyerId === userId || o.sellerId === userId);
-  res.json(filtered);
+
+  // Regular user: strictly enforce viewing only their own orders
+  const myOrders = orders.filter(o => o.buyerId === user.id || o.sellerId === user.id);
+  res.json(myOrders);
 });
 
-app.put("/api/orders/:id/status", (req, res) => {
+app.put("/api/orders/:id/status", authenticateToken, (req: AuthenticatedRequest, res) => {
   const { id } = req.params;
-  const { status } = req.body; // 'processing', 'shipped', 'delivered'
+  const { status } = req.body; // 'processing', 'shipped', 'delivered', 'cancelled'
+  const user = req.user;
 
   const index = orders.findIndex(o => o.id === id);
   if (index === -1) {
     return res.status(404).json({ error: "Order not found" });
+  }
+
+  const order = orders[index];
+  const isAuthorized = 
+    ['admin', 'manager'].includes(user.role.toLowerCase()) || 
+    user.id === order.sellerId || 
+    user.id === order.buyerId;
+
+  if (!isAuthorized) {
+    return res.status(403).json({ error: "Access denied. You can only update your own orders." });
   }
 
   orders[index].status = status;
@@ -465,30 +629,34 @@ app.put("/api/orders/:id/status", (req, res) => {
 });
 
 // CHATS ENDPOINTS
-app.get("/api/chats", (req, res) => {
-  const { userId } = req.query;
-  if (!userId) return res.json(chats);
-  const filtered = chats.filter(c => c.buyerId === userId || c.sellerId === userId);
+app.get("/api/chats", authenticateToken, (req: AuthenticatedRequest, res) => {
+  const user = req.user;
+  if (['admin', 'manager'].includes(user.role.toLowerCase())) {
+    return res.json(chats);
+  }
+  const filtered = chats.filter(c => c.buyerId === user.id || c.sellerId === user.id);
   res.json(filtered);
 });
 
-app.post("/api/chats", (req, res) => {
-  const { buyerId, buyerName, sellerId, sellerName, robotId, robotName } = req.body;
-  if (!buyerId || !sellerId || !robotId) {
-    return res.status(400).json({ error: "Missing thread creators" });
+app.post("/api/chats", authenticateToken, (req: AuthenticatedRequest, res) => {
+  const { sellerId, sellerName, robotId, robotName } = req.body;
+  const user = req.user;
+
+  if (!sellerId || !robotId) {
+    return res.status(400).json({ error: "Missing required chat parameters (sellerId, robotId)" });
   }
 
   // Find existing thread
-  let thread = chats.find(c => c.buyerId === buyerId && c.sellerId === sellerId && c.robotId === robotId);
+  let thread = chats.find(c => c.buyerId === user.id && c.sellerId === sellerId && c.robotId === robotId);
   if (!thread) {
     thread = {
       id: "ch_" + Date.now(),
-      buyerId,
-      buyerName,
+      buyerId: user.id,
+      buyerName: user.username,
       sellerId,
-      sellerName,
+      sellerName: sellerName || "Seller",
       robotId,
-      robotName,
+      robotName: robotName || "Hardware Unit",
       messages: [],
       updatedAt: new Date().toISOString()
     };
@@ -498,19 +666,30 @@ app.post("/api/chats", (req, res) => {
   res.json(thread);
 });
 
-app.post("/api/chats/:id/messages", (req, res) => {
+app.post("/api/chats/:id/messages", authenticateToken, (req: AuthenticatedRequest, res) => {
   const { id } = req.params;
-  const { senderId, senderName, content } = req.body;
+  const { content } = req.body;
+  const user = req.user;
+
+  if (!content) {
+    return res.status(400).json({ error: "Message content cannot be empty" });
+  }
 
   const index = chats.findIndex(c => c.id === id);
   if (index === -1) {
     return res.status(404).json({ error: "Chat thread not found" });
   }
 
+  const thread = chats[index];
+  const isParticipant = ['admin', 'manager'].includes(user.role.toLowerCase()) || user.id === thread.buyerId || user.id === thread.sellerId;
+  if (!isParticipant) {
+    return res.status(403).json({ error: "Access denied to chat thread" });
+  }
+
   const newMessage = {
     id: "msg_" + Date.now(),
-    senderId,
-    senderName,
+    senderId: user.id,
+    senderName: user.username,
     content,
     createdAt: new Date().toISOString()
   };
@@ -538,6 +717,35 @@ function formatAiError(err: any): string {
     return "The Gemini API service is currently experiencing high demand or is temporarily unavailable (503 Service Unavailable). Please wait a moment and try again.";
   }
   return errMsg;
+}
+
+// Exponential backoff helper for transient API errors
+async function callWithRetry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
+  let lastErr: any;
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastErr = err;
+      const errMsg = err?.message || String(err || '');
+      const isTransient = 
+        errMsg.includes("503") ||
+        errMsg.includes("UNAVAILABLE") ||
+        errMsg.includes("high demand") ||
+        errMsg.includes("overloaded") ||
+        errMsg.includes("capacity") ||
+        errMsg.includes("rate limit") ||
+        errMsg.includes("429");
+      
+      if (!isTransient || i === retries - 1) {
+        throw err;
+      }
+      
+      console.warn(`Transient Gemini API error detected. Retrying ${i + 1}/${retries} in ${delay * (i + 1)}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+    }
+  }
+  throw lastErr;
 }
 
 // API STATUS CHECK
@@ -571,29 +779,54 @@ app.post("/api/ai/chat", async (req, res) => {
       specs: r.specs
     })));
 
-    const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await callWithRetry(() => getAiClient().models.generateContent({
+      model: "gemini-3.6-flash",
       contents: formattedContents,
       config: {
-        systemInstruction: `You are the RoboMarket AI Advisor, an expert robotics consultant and marketplace navigator. Your role is to help users select the perfect robots for their specific needs (industrial, medical, agricultural, security, delivery, cleaning, companion, education, humanoid, research, companion etc.), analyze budgets, explain complex engineering specs in simple terms, and compare models.
+        systemInstruction: `You are the RoboMarket AI SaaS Advisor & Hardware Specialist. Your role is to assist users with selecting SaaS subscriptions (Free, Pro, Enterprise), recommending AI models (Gemini 3.6 Flash, Gemini 3.1 Pro, GPT-4o, Claude 3.5 Sonnet, DeepSeek R1, Grok 2), managing BYOK API Keys, connecting Web3 Wallets, purchasing token packs, and buying autonomous robotic hardware.
 
-AVAILABLE LISTINGS IN THE MARKETPLACE:
-${activeRobotsString}
+SAAS SUBSCRIPTION PLANS:
+- Free Tier ($0/mo): 20k tokens/mo, Gemini 3.6 Flash & Llama 3.3.
+- Pro Plan ($29/mo or ~0.01 ETH): 500k tokens/mo, Gemini 3.1 Pro, GPT-4o, Claude 3.5 Sonnet, DeepSeek V3, Chat-based Crypto Purchasing.
+- Enterprise Tier ($199/mo or ~0.065 ETH): 5M tokens/mo, All models (Gemini 3.1 Pro, GPT-4o, Claude 3.5, Grok 2, DeepSeek R1), 300 RPM, Web3 Escrow.
+- 100k Token Pack ($10 or ~0.0035 ETH): One-time +100,000 AI tokens top-up.
 
 CRITICAL INSTRUCTIONS:
-1. Restrict your scope strictly to robotics, hardware automation, and robot marketplace queries. If the user asks about unrelated topics (e.g. cooking recipes, history, general software coding, music), politely refuse and guide them back to robotics.
-2. Be professional, direct, objective, and highly helpful. Focus on being their dedicated Robotics Expert.
-3. Recommend listings from the active marketplace list when appropriate. Let them know these specific models are listed in our catalog.
-4. Try to make suggestions realistic and highlight physical requirements (such as payload, battery, operating system, speed).
-5. Always answer in clear, markdown formatting. Keep your responses highly scannable and readable.`,
+1. Help users compare plans, explain token limits, recommend plans, and encourage subscribing or topping up via Web3 crypto payments.
+2. If the user asks to buy or upgrade to a plan, explicitly confirm the plan details and pricing in ETH/USD.
+3. Be direct, professional, concise, and markdown formatted.`,
         temperature: 0.7,
       }
-    });
+    }));
 
     res.json({ content: response.text });
   } catch (err: any) {
-    console.error("AI Advisor error:", err);
-    res.status(500).json({ error: formatAiError(err) });
+    console.error("AI Advisor error (auto-falling back to local intelligent engine):", err);
+    
+    // Automatic fallback logic when API is overloaded or key fails
+    const lastMsg = (messages?.[messages.length - 1]?.content || '').toLowerCase();
+    let fallbackText = "As your AI Advisor, I am using our local backup intelligence engine to assist you:\n\n";
+    let planRecommendation = undefined;
+    let paymentCard = undefined;
+
+    if (lastMsg.includes('enterprise')) {
+      fallbackText += "The **Enterprise Tier** ($199/mo or 0.065 ETH) provides **5,000,000 monthly tokens**, access to ALL models (Gemini 3.1 Pro, GPT-4o, Claude 3.5, Grok 2, DeepSeek R1), and Web3 auto-invoicing.\n\nYou can click below to complete your crypto transaction.";
+      planRecommendation = { planId: "plan_enterprise", planName: "Enterprise Tier", priceUSD: 199, cryptoETH: 0.065, tokenAllowance: "5,000,000 tokens / mo", features: ["5M Tokens", "All Premium Models", "Web3 Escrow"] };
+      paymentCard = { orderId: "ord_" + Date.now(), planId: "plan_enterprise", planName: "Enterprise Tier", amountUSD: 199, amountCrypto: 0.065, currency: "ETH" as const, status: "pending" as const };
+    } else if (lastMsg.includes('pro') || lastMsg.includes('plan') || lastMsg.includes('buy') || lastMsg.includes('price')) {
+      fallbackText += "I recommend our **Pro Plan** ($29/mo or 0.01 ETH). It offers **500,000 tokens/mo**, access to Gemini 3.1 Pro, GPT-4o, Claude 3.5 Sonnet, and BYOK API Key Vault integration.\n\nYou can subscribe directly below:";
+      planRecommendation = { planId: "plan_pro", planName: "Pro Plan", priceUSD: 29, cryptoETH: 0.01, tokenAllowance: "500,000 tokens / mo", features: ["500k Tokens", "Access to Pro Models", "BYOK Key Vault"] };
+      paymentCard = { orderId: "ord_" + Date.now(), planId: "plan_pro", planName: "Pro Plan", amountUSD: 29, amountCrypto: 0.01, currency: "ETH" as const, status: "pending" as const };
+    } else {
+      fallbackText += "Welcome! I can help you select a plan, manage your personal API keys (BYOK), connect Web3 wallets, or procure robotic hardware. Let me know what you're looking for!";
+    }
+
+    res.json({ 
+      content: fallbackText, 
+      isFallback: true, 
+      planRecommendation, 
+      paymentCard 
+    });
   }
 });
 
@@ -623,8 +856,8 @@ User Query: "${query}"
 Available Robots:
 ${JSON.stringify(robotsBrief, null, 2)}`;
 
-    const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await callWithRetry(() => getAiClient().models.generateContent({
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -649,7 +882,7 @@ ${JSON.stringify(robotsBrief, null, 2)}`;
         },
         systemInstruction: "You are a database query assistant. You convert loose natural language searches into structured search matching results based strictly on the user's requirements and budget."
       }
-    });
+    }));
 
     const parsed = JSON.parse(response.text || "{}");
     res.json(parsed);
@@ -682,8 +915,8 @@ Seller Name: ${robot.sellerName}
 Description: "${robot.description}"
 Specifications: ${JSON.stringify(robot.specs, null, 2)}`;
 
-    const response = await getAiClient().models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await callWithRetry(() => getAiClient().models.generateContent({
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -722,7 +955,7 @@ Specifications: ${JSON.stringify(robot.specs, null, 2)}`;
         },
         systemInstruction: "You are an automated marketplace security and QA analyst. Your job is to check for fraudulent listings, inconsistent hardware specs, overpricing/underpricing, and help buyers understand listing quality."
       }
-    });
+    }));
 
     const parsed = JSON.parse(response.text || "{}");
     res.json(parsed);

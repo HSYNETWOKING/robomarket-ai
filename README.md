@@ -1,291 +1,198 @@
-# RoboMarket AI, Cognitive Robotic Hardware Marketplace & Auditing System
+# RoboMarket AI — Next-Gen Cognitive Autonomous Hardware Marketplace & Web3 SaaS Ecosystem
 
 ---
-Hassan Shahbaz ACT AI
-<<<<<<< HEAD
-University of Education
+Hassan Shahbaz, ACT AI, University of Education
 https://robomarket-ai-vjiu.vercel.app/
-=======
-University of Education.
->>>>>>> 67bce092d073a19f919cc10ba3b4b70748e0aa7a
-
-## 1. Executive Summary & Core Paradigm
+- **🖥️ Video URL:** https://drive.google.com/drive/folders/1XtP_ohsJtnvpV6SeKOklliNQ9Hr8sLj1
+## 1. Executive Summary & SaaS Architecture Paradigm
 
 ### Project Title
-**RoboMarket AI**  
+**RoboMarket AI**
 
 ### Project Tagline
-*A Cognitive, AI-Audited Marketplace and Decision-Support Ecosystem for Autonomous Hardware and Industrial Robotics Procurements.*
+*An Enterprise SaaS & Web3 Ecosystem for Autonomous Hardware Procurements, AI-Audited Security Diagnostics, Multi-Provider BYOK Key Management, and Decentralized Escrow Transactions.*
 
-### Academic Abstract
-In the contemporary robotics industry, hardware procurement remains plagued by high capital risks, informational asymmetry, and fraudulent or unverified listings. Researchers, medical institutions, and manufacturing plants routinely purchase multi-thousand-dollar robotic platforms (such as bipedal humanoids, industrial 6-axis arms, or clinical rovers) based on specifications that are inconsistent, poorly formatted, or intentionally exaggerated.
+### Platform Overview
+In the rapidly growing robotics and hardware automation industry, procuring industrial platforms (humanoid bipedal systems, 6-axis robotic arms, agricultural rovers, clinical delivery units) suffers from high capital risk, specification opacity, and lack of real-time technical verification.
 
-**RoboMarket AI** addresses this paradigm by introducing an intelligent, full-stack, and decision-support portal. By embedding the **Gemini 3.5 Flash LLM** natively into our API gateway, we implement autonomous physical parameter checking (evaluating pricing vs. mechanical capacities), real-time interactive technical consultancy, and advanced natural language semantic catalog query mapping.
+**RoboMarket AI** resolves this challenge with an enterprise-grade SaaS marketplace platform integrated with **Google Gemini AI**, **Multi-Provider BYOK Key Vault**, **Web3 Wallet Payments**, **Decentralized Escrow Architecture**, and **Server-Side RBAC & Security Safeguards**.
 
 ```
 +------------------------------------------------------------------------+
 |                            ROBOMARKET AI                               |
-|        Full-Stack Cognitive Procurement and Verification System         |
+|        Full-Stack Enterprise SaaS & Web3 Autonomous Marketplace        |
 +-----------------------------------+------------------------------------+
 |             CLIENT APP            |           SERVER GATEWAY           |
-|  - React 19 SPA & Vite Engine     |  - Express JS Runtime              |
-|  - Tailwind Responsive Design     |  - Direct TSX/esbuild Bundle       |
-|  - Lucide Icons                   |  - Persistent Portability Cache    |
+|  - React 18 SPA & Vite Engine     |  - Express JS Runtime & Security   |
+|  - Tailwind Responsive Design     |  - Bcrypt Password Hashing & RBAC  |
+|  - Lucide Icons & Motion          |  - Bearer Token Auth Middleware    |
 +-----------------+-----------------+-----------------+------------------+
                   |                                   |
                   v                                   v
 +-----------------------------------+------------------------------------+
-|            AI ENGINE              |         SECURITY ASSURANCE         |
-|  - @google/genai SDK Integration  |  - Automated QA Quality Auditor    |
-|  - Semantic Search Engine         |  - Authenticity Scoring Index      |
-|  - Interactive Advisor Chatbot    |  - Sandbox Multi-Role Workspace    |
+|            AI & BYOK              |           WEB3 & SAAS              |
+|  - Google Gemini @google/genai    |  - Multi-Wallet Connectors         |
+|  - OpenAI, Claude, Grok, DeepSeek |  - Crypto Payment & Escrow Gateway |
+|  - Client BYOK Key Vault          |  - SaaS Tier Matrix & Token Packs  |
+|  - AI Advisor & Security Auditor  |  - Multi-Role Admin Workspace      |
 +-----------------------------------+------------------------------------+
 ```
 
-### Target Audience
-1. **Robotics Research Laboratories & Universities** looking to procure uncertified or certified robotic platforms under budget.
-2. **Clinical & Logistics Coordinators** sourcing autonomous delivery guides, drones, and high-terrain rovers.
-3. **Certified Robotics Manufacturers** seeking a verified, professional marketplace to list proprietary hardware.
-4. **Staff Administrators & Quality Bureau Officers** managing high-value engineering trade approvals.
+---
 
-### The Real-World Problem It Solves
-- **Specification Frauds:** Preventing sellers from listing a $3,000 drone and falsely claiming a 500kg payload (which violates basic aeronautical engineering metrics).
-- **Cognitive Overhead in Comparison:** Mapping highly complex electrical and mechanical metrics (e.g. DOFs, payload capacity, operating systems) side-by-side and generating trade-off reports.
-- **Query Complexity:** Standard databases require exact keyword matches. Buyers with loosely formulated needs (e.g., *"I need something that can move heavy metal sheets around my narrow warehouse"*) cannot find fitting solutions without manual translation.
+## 2. Platform Security, RBAC & Architectural Audit Summary
+
+RoboMarket AI was subjected to a comprehensive multi-phase security and usability audit and upgraded with production-grade backend safeguards:
+
+### Phase 1: Critical Security & Authentication
+- **Server-Side Authentication Middleware (`authenticateToken`):** Mandated Bearer token authentication on all protected REST endpoints (`/api/auth/me`, `/api/robots` POST, `/api/orders` GET/POST/PUT, `/api/chats` GET/POST, `/api/admin/*`).
+- **Server-Side Role-Based Access Control (`requireRole`):** Enforced strict role authorization on `/api/admin/*` routes for `admin` and `manager` roles. Managers are strictly forbidden from modifying user roles to Admin or issuing permanent bans.
+- **Bcrypt Password Hashing:** Replaced legacy plaintext passwords with `bcryptjs` salted hashes (10 rounds) across user registration, password updates, and seeded demo credentials (`admin@robomarket.ai`, `manager@robomarket.ai`, `user@robomarket.ai`).
+- **Password Strength Validation:** Enforced password complexity rules, rejecting empty or weak (<6 character) passwords during registration and authentication.
+- **Sanitized Password Outputs:** Omitted password fields from all server responses (`/api/auth/me`, `/api/auth/login`, `/api/auth/register`, `/api/admin/users`).
+
+### Phase 2: Routing & Cross-Tab Session Synchronization
+- **Browser History Support:** Integrated `popstate` event handling to align application active tabs with browser back/forward navigation and URL paths (`/marketplace`, `/dashboard`, `/admin`, `/compare`, etc.).
+- **Cross-Tab Session Sync:** Added `storage` event listeners for `robo_user` and `robo_token` to instantly sync login/logout state and role changes across open browser tabs.
+- **Role Revalidation on Focus:** Implemented automatic `/api/auth/me` background verification on window focus to immediately catch server-side role updates.
+- **Listing Creation Redirect:** Automatically redirects users to the "My Hardware Listings" view immediately upon submitting a new hardware listing.
+
+### Phase 3: Dashboard Integrity & Destructive Action Protections
+- **Inventory Sync:** Re-fetches fresh hardware inventory and listings after order creation, status changes, or admin approvals/rejections.
+- **Confirmation Dialogs:** Added `window.confirm` safety prompts before high-impact destructive actions (role elevation, account suspension/ban, listing rejection).
+
+### Phase 4: Mobile UI & Z-Index Polish
+- **Body Scroll Lock:** Implemented `document.body.style.overflow = 'hidden'` when the mobile navigation drawer is active to prevent unwanted background page scrolling.
+- **Responsive Table Containers:** Standardized all data tables (Admin Users, Orders, Hardware Listings, Wallet Payments) inside responsive horizontal scrolling containers (`overflow-x-auto`).
+- **Layering & Z-Index Hierarchy:** Resolved overlay conflicts between floating alerts, sticky headers (`z-40`), and mobile drawers (`z-50`).
 
 ---
 
-## 2. Live Deployed Artifacts & Repositories
-
-For active inspection, testing, and grading, please reference the following live project nodes:
-
-- **🔴 LIVE Deployed Vercel URL:** [https://robomarket-ai-vjiu.vercel.app](https://robomarket-ai-vjiu.vercel.app) *(Active Production Node)*
-- **🖥️ Video URL:** https://drive.google.com/drive/folders/1XtP_ohsJtnvpV6SeKOklliNQ9Hr8sLj1
-
----
-
-## 3. Product Features & Operations Matrix
+## 3. Platform Features & Operations Matrix
 
 | Module | Core Capability | User Benefit | Technical Implementation |
 | :--- | :--- | :--- | :--- |
-| **Marketplace Catalog** | **Floor Division Views** | Clean, targeted navigation through industrial, humanoid, medical, agricultural, and security categories. | High-performance client-side category grouping state filters. |
-| **Specification Sheet** | **Structured Parameter Matrix** | Eliminates unstructured raw descriptions by enforcing rigid payload, weight, battery life, and warranty listings. | Component-driven mechanical data-grid mapping. |
-| **Buy / Sell / Lease** | **Secure Listing Submission** | Sellers can easily register new robots; buyers can purchase items instantly or request lease terms. | Two-step validation form, checking for empty strings, pricing sanity, and custom reference images. |
-| **Side-by-Side Compare** | **3-Way Hardware Comparison** | Direct parameter-by-parameter alignment of multiple robot options. | Grid alignment comparing mechanical capacities, degrees-of-freedom, and prices. |
-| **Staff Admin Panel**| **Merchant Bureau Board** | Staff can inspect, audit, approve, or outright ban/reject suspicious new hardware listings. | Real-time global dashboard tracking total GTV (Gross Transaction Value) and active unit nodes. |
-| **User Dashboard** | **Role-Based Workspaces** | View purchase order history, track shipping logs, and update logistics parameters (Pending $\to$ Delivered). | Dynamic React state updating simulated fulfillment tracks. |
-| **Search & Filters** | **Multi-Axis Query Core** | Instantly slice and filter search results by condition, category, price bounds, and keywords. | Strict algorithmic catalog filtering combined with Natural Language vector search. |
+| **Marketplace Catalog** | **Floor Division Views** | Targeted navigation through Industrial, Humanoid, Medical, Agricultural, and Security categories. | High-performance client-side category grouping & live state filters. |
+| **BYOK API Vault** | **Bring Your Own Key** | Support for Gemini, OpenAI, Claude, Grok, DeepSeek, & Mistral to bypass rate limits. | Client-side encrypted storage vault with live ping tests & provider toggles. |
+| **Web3 Wallet Connect** | **Multi-Chain Connectors** | Seamless connection with MetaMask, Rabby Wallet, WalletConnect, Coinbase Wallet, & Phantom. | Web3 provider modal with network toggles and address management. |
+| **Crypto Payments** | **Multi-Chain Escrow** | Pay for hardware, subscriptions, or credit packs in ETH, USDT, USDC, SOL, MATIC, or BNB. | Interactive crypto checkout modal with gas estimation, block hashes, & receipts. |
+| **SaaS Subscriptions** | **Tiered Access Matrix** | Free Explorer, Pro Contractor ($29/mo), and Enterprise Fleet ($199/mo) plans + Token Packs. | Feature comparison table with upgrade triggers and Web3 payment options. |
+| **AI Security Audit** | **Automated Listing Scan** | Evaluates price logic, spec consistency, and generates authenticity index scores. | Server-side Gemini API analysis with local intelligent fallback. |
+| **Specification Compare**| **Side-by-Side Floor** | Parameter-by-parameter alignment with AI-generated trade-off synthesis reports. | Comparative spec table with natural language Gemini trade-off explainer. |
+| **Staff Admin Panel** | **Merchant Quality Board** | Inspect, audit, approve, or reject new merchant listing submissions with RBAC permissions. | Admin workspace with GTV metrics, user role management, and approval queues. |
 
 ---
 
-## 4. Artificial Intelligence & Cognitive Engine (Gemini API)
+## 4. Supported AI Providers & BYOK Architecture
 
-Our architecture positions AI as a core, server-side quality auditor and consultant rather than client-side "filler." All AI workflows leverage the **`@google/genai` TypeScript SDK** on server-side API routes to secure credentials.
+### Multi-Provider API Key Vault
+RoboMarket AI features a privacy-centric **Bring Your Own Key (BYOK)** architecture in `/src/components/ApiKeyVault.tsx`:
 
-```
-                                  [ User Request ]
-                                         |
-                                         v
-                            [ Express Server API Route ]
-                                         |
-                       +-----------------+-----------------+
-                       |                                   |
-                       v                                   v
-             [ Retrieve Sandbox ]                [ Retrieve Custom ]
-            [ Database Listings ]               [ System Instruction ]
-                       |                                   |
-                       +-----------------+-----------------+
-                                         |
-                                         v
-                            [ Get AI Client (Gemini) ]
-                                         |
-                                         v
-                         [ generateContent (Json/MD Mode) ]
-                                         |
-                                         v
-                            [ Structured Client View ]
-```
-
-### A. Advanced Natural Language Search & Matching
-- **Endpoint:** `/api/ai/search`
-- **Mechanism:** Takes loose natural language (e.g. *"Find me a small, cheap bot to vacuum hospital rooms"*) and passes the request along with a compact, structured snapshot of active robots. The AI maps the buyer's goal directly to matching database records and returns a clean array of relevant IDs along with a tailored explanation of why each is recommended.
-
-### B. Interactive Robotics Advisor Chatbot
-- **Endpoint:** `/api/ai/chat`
-- **Mechanism:** An expert consultant trained to recommend active marketplace units, discuss mechanics (Degrees of Freedom, battery power, ROS integrations), and refuse general non-robotic chat (e.g. cooking, pop music).
-- **Exact Custom System Prompt:**
-```text
-You are the RoboMarket AI Advisor, an expert robotics consultant and marketplace navigator. Your role is to help users select the perfect robots for their specific needs (industrial, medical, agricultural, security, delivery, cleaning, companion, education, humanoid, research, companion etc.), analyze budgets, explain complex engineering specs in simple terms, and compare models.
-
-AVAILABLE LISTINGS IN THE MARKETPLACE:
-${activeRobotsString}
-
-CRITICAL INSTRUCTIONS:
-1. Restrict your scope strictly to robotics, hardware automation, and robot marketplace queries. If the user asks about unrelated topics (e.g. cooking recipes, history, general software coding, music), politely refuse and guide them back to robotics.
-2. Be professional, direct, objective, and highly helpful. Focus on being their dedicated Robotics Expert.
-3. Recommend listings from the active marketplace list when appropriate. Let them know these specific models are listed in our catalog.
-4. Try to make suggestions realistic and highlight physical requirements (such as payload, battery, operating system, speed).
-5. Always answer in clear, markdown formatting. Keep your responses highly scannable and readable.
-```
-
-### C. Automated Security & QA Quality Auditor
-- **Endpoint:** `/api/ai/analyze`
-- **Mechanism:** Evaluates a newly registered hardware listing or existing catalog item. It returns a structured JSON payload detailing an Authenticity Score, Pros/Cons, any suspicious engineering claims, and a final purchasing verdict.
-- **Exact Custom System Prompt:**
-```text
-You are an automated marketplace security and QA analyst. Your job is to check for fraudulent listings, inconsistent hardware specs, overpricing/underpricing, and help buyers understand listing quality.
-```
-- **Response Format Schema:** Enforced through standard JSON schema structure representing `qualityScore (0-100)`, `summary (string)`, `pros (array)`, `cons (array)`, `suspiciousFlags (array)`, and `verdict ('Excellent' | 'Fair' | 'Suspicious' | 'Dangerous')`.
+#### Supported Providers
+1. **Google Gemini AI:** Gemini 3.6 Flash, Gemini 3.1 Pro (`AIzaSy...`)
+2. **OpenAI:** GPT-4o, GPT-4o mini, o3-mini (`sk-proj-...`)
+3. **Anthropic:** Claude 3.5 Sonnet, Claude 3 Opus (`sk-ant-...`)
+4. **xAI:** Grok 2, Grok Vision (`xai-...`)
+5. **DeepSeek:** DeepSeek R1, DeepSeek V3 (`sk-ds-...`)
+6. **Mistral AI:** Mistral Large, Codestral (`mis-...`)
 
 ---
 
-## 5. Architectural Blueprint & Technical Stack
+## 5. Directory & Project Structure
 
-To secure top-marks in an academic or production review, the codebase is designed using a modern full-stack decoupled model. The table below represents the high-level production stack mapping, alongside our agile sandbox setup:
-
-| Stack Layer | Production-Grade Design Specification | Sandbox Prototyping Stack |
-| :--- | :--- | :--- |
-| **Frontend Framework** | **Next.js 15 (App Router)** | **React 19 + Vite + TypeScript** |
-| **Styling Core** | **Tailwind CSS + Tailwind Theme Presets** | **Tailwind CSS Utility Classes** |
-| **Language** | **TypeScript (Strict Type Safety)** | **TypeScript (Strict Module Enums)** |
-| **Database ORM** | **Prisma Client** | **Persistent Portable JSON Storage** |
-| **Relational Database** | **PostgreSQL (Cloud SQL / Supabase)** | **File-Based Isolated Workspace Cache** |
-| **User Authentication** | **NextAuth.js (Auth.js v5)** | **Sandbox Multi-User Role Simulator** |
-| **Cloud Storage** | **Cloudinary (Asset CDN hosting)** | **Simulated Base64 & Dynamic Web Links** |
-| **AI Processing** | **Google Gemini 3.5 Flash Model** | **`@google/genai` TypeScript SDK** |
-| **Build Optimizer** | **Webpack / Next Compiler** | **esbuild (CommonJS Server Compilation)** |
+```
+.
+├── .env.example              # Environment variable declaration template
+├── package.json              # Applet dependencies, dev, build, and start scripts
+├── server.ts                 # Express JS backend with Bcrypt auth, RBAC, REST APIs, & Gemini
+├── vite.config.ts            # Vite configuration for React & Tailwind CSS
+├── tsconfig.json             # TypeScript compiler settings
+├── data/                     # Persistent JSON database directory
+│   ├── users.json            # User profile data & bcrypt password hashes
+│   ├── robots.json           # Hardware marketplace listings
+│   ├── chats.json            # Buyer-Seller message threads
+│   └── orders.json           # Order & tracking records
+├── src/
+│   ├── main.tsx              # React entry point
+│   ├── App.tsx               # Main container component, popstate routing & session sync
+│   ├── types.ts              # Global TypeScript interfaces & data models
+│   ├── index.css             # Tailwind CSS entry imports & custom styles
+│   └── components/
+│       ├── AIAssistant.tsx        # Interactive AI Advisor & Chat-based checkout
+│       ├── ApiKeyVault.tsx        # BYOK API key management & validation
+│       ├── ChatComponent.tsx      # Buyer-Seller splitscreen inbox
+│       ├── CompareRobots.tsx      # Side-by-side hardware spec comparison
+│       ├── CryptoPaymentModal.tsx # Web3 checkout & escrow transaction modal
+│       ├── Dashboards.tsx         # User & Admin management portals with confirmation dialogs
+│       ├── Header.tsx             # Responsive header navigation & mobile scroll lock
+│       ├── LandingPage.tsx        # Hero banner & catalog overview
+│       ├── Marketplace.tsx        # Catalog filters & natural language AI search
+│       ├── PricingMatrix.tsx      # SaaS subscription tier & credit pack plans
+│       ├── RobotCard.tsx          # Listing card component
+│       ├── RobotDetails.tsx       # Listing details view with AI Security Audit
+│       ├── SellRobot.tsx          # Merchant hardware listing creation form
+│       ├── StaticPages.tsx        # About, Terms, and Privacy documentation
+│       ├── WalletPaymentsHistory.tsx # Web3 transaction log & receipt viewer
+│       └── Web3WalletModal.tsx    # Wallet selection & network selector modal
+```
 
 ---
 
-## 6. Architectural Screenshots & Mockups
-
-To visualize the system UI during academic assessments, please refer to the primary viewport layout definitions:
-
-### Screen A: Marketplace Dashboard & Floor Catalog
-```
-+-------------------------------------------------------------------------+
-| [R] RoboMarket AI (Logo)  Home   Marketplace   Compare   Sell   [Profile] |
-+-------------------------------------------------------------------------+
-|  "Autonomous Hardware Procurement Floor" (Header Title)                |
-|                                                                         |
-|  [ Search Robotic Hardware System... ]               [ AI Search ]      |
-|                                                                         |
-|  Filters: [ Industrial ] [ Humanoid ] [ Medical ] [ Agri ] [ Security ] |
-|                                                                         |
-|  +------------------------+  +------------------------+  +------------+ |
-|  | Bipedal Humanoid       |  | Industrial 6-Axis Arm  |  | ...        | |
-|  | $120,000 | New         |  | $45,000 | Certified     |  |            | |
-|  | Payload: 80kg          |  | Payload: 250kg         |  |            | |
-|  | [View Specifications]  |  | [View Specifications]  |  |            | |
-|  +------------------------+  +------------------------+  +------------+ |
-+-------------------------------------------------------------------------+
-```
-> *Caption: Viewport representing the responsive product grid, integrated Natural Language search trigger, and granular mechanical class selection filters.*
-
-### Screen B: Triple-Axis Comparison Floor & AI Explainer
-```
-+-------------------------------------------------------------------------+
-| [R] RoboMarket AI (Logo)  Home   Marketplace   Compare   Sell   [Profile] |
-+-------------------------------------------------------------------------+
-|  "Hardware Comparison Floor"                                            |
-|                                                                         |
-|  +-----------------------+ +-----------------------+ +----------------+ |
-|  | System Node A         | | System Node B         | | (Add Slot 3)   | |
-|  | Bipedal Humanoid      | | Industrial 6-Axis     | |                | |
-|  | $120,000              | | $45,000               | |                | |
-|  | Payload: 80kg         | | Payload: 250kg        | |                | |
-|  | Range: 8 Hours        | | Range: Continuous     | |                | |
-|  +-----------------------+ +-----------------------+ +----------------+ |
-|                                                                         |
-|  +--------------------------------------------------------------------+ |
-|  | 🌟 AI Engineering Trade-Off Analysis (Gemini 3.5)                  | |
-|  | - System Node A is ideal for human-interactive service spaces.     | |
-|  | - System Node B has superior lift-to-weight ratio for assembly.    | |
-|  | - Recommendation: Purchase B if workspace is structurally static.  | |
-|  +--------------------------------------------------------------------+ |
-+-------------------------------------------------------------------------+
-```
-> *Caption: Viewport of the analytical spec-explainer layout, showcasing the side-by-side alignment grid and AI-generated mechanical trade-off synthesis.*
-
-### Screen C: AI Technical Advisor Conversational Interface
-```
-+-------------------------------------------------------------------------+
-| [R] RoboMarket AI (Logo)  Home   Marketplace   Compare   Sell   [Profile] |
-+-------------------------------------------------------------------------+
-|  "AI Technical Advisor Consultation Room"                               |
-|                                                                         |
-|  +--------------------------------------------------------------------+ |
-|  | [Advisor]: Welcome to the bureau. Tell me about your site's physical| |
-|  | payload requirements, power sources, or operational ceilings.      | |
-|  |                                                                    | |
-|  | [User]: I need a small delivery bot that can carry 10kg in a clinic| |
-|  |                                                                    | |
-|  | [Advisor]: I recommend the "MediTransit Rover v2" ($18,500) which is | |
-|  | currently in our catalog floor. It has a 15kg payload and is ROS-   | |
-|  | compatible. Click below to view specifications:                    | |
-|  | -> [Inspect MediTransit Rover v2 Specifications]                   | |
-|  +--------------------------------------------------------------------+ |
-|  [ Type your engineering query here... ]                     [ Send ]   |
-+-------------------------------------------------------------------------+
-```
-> *Caption: Viewport of the custom-prompted conversational technical support environment, displaying interactive quick-action triggers to load catalog items.*
-
----
-
-## 7. Step-by-Step Local Setup & Installation
-
-Follow these precise commands to install and spin up the full-stack system locally.
+## 6. Local Installation & Development Setup
 
 ### Prerequisites
-- **Node.js:** Version 18.0.0 or higher.
-- **Git:** For codebase extraction.
+- **Node.js:** Version 18.0.0 or higher
+- **npm:** Package manager (included with Node.js)
 
-### Step 1: Clone the Repository
+### Step 1: Clone Repository
 ```bash
-git clone https://github.com/academic-student/robomarket-ai-capstone.git
-cd robomarket-ai-capstone
+git clone <repository-url>
+cd robomarket-ai
 ```
 
-### Step 2: Install Base Dependencies
+### Step 2: Install Dependencies
 ```bash
 npm install
 ```
 
-### Step 3: Set Up Environment Configuration
-Create a `.env` file in the root of the project to feed credentials securely:
+### Step 3: Configure Environment Variables
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+Ensure variables are populated:
 ```env
-# Server Configuration
+# Port Configuration
 PORT=3000
-NODE_ENV="development"
+NODE_ENV=development
 
-# Google Gemini Credentials
-GEMINI_API_KEY="AIzaSyYourGeminiApiKeyHere"
-
-# Production Blueprint Target Variables (Ready for Prisma/PostgreSQL migration)
-DATABASE_URL="postgresql://username:password@localhost:5432/robomarket_db?schema=public"
-NEXTAUTH_SECRET="A34F90E11B7CD32E9012"
-CLOUDINARY_URL="cloudinary://api_key:api_secret@cloud_name"
+# Google Gemini API Key (Optional if using BYOK in UI)
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 ### Step 4: Run Development Server
-Our full-stack architecture maps Express and Vite simultaneously over a single multiplexed port to bypass CORS errors:
 ```bash
 npm run dev
 ```
-Open your browser of choice and direct it to: `http://localhost:3000`.
+Open `http://localhost:3000` in your browser.
 
-### Step 5: Perform Sandbox Quality Assurance
-To simulate database migrations or administrative permissions, use our custom header button **"Connect Sandbox Profile"**:
-1. Select **`admin` (Staff Administrator)** to inspect the Listing Approvals Bureau.
-2. Select **`TechEnthusiast99` (Buyer/Seller)** to test listing submissions, direct peer-to-peer chats, and buyer-checkout procedures.
+---
 
-### Step 6: Build Production Distribution Bundle
-```bash
-npm run build
-```
-This single compilation command:
-1. Triggers the Vite optimizer to build public client-side bundle assets into `/dist/`.
-2. Invokes **esbuild** to compile, bundle, and tree-shake the server-side TypeScript entrypoint into a single self-contained `/dist/server.cjs` file, ready for high-performance serverless deployment.
+## 7. Demo Credentials & RBAC Accounts
 
+| Role | Email | Password | Allowed Capabilities |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin@robomarket.ai` | `password123` | Full administrative control: Manage users, promote/demote roles, approve/reject listings, view system analytics. |
+| **Manager** | `manager@robomarket.ai` | `password123` | Operational management: Approve/reject listings, view user lists, temporarily suspend accounts (cannot assign Admin role or issue permanent bans). |
+| **User / Merchant** | `user@robomarket.ai` | `password123` | Standard account: Browse hardware, post listings (pending approval), place orders, chat with sellers. |
 
-- [x] **Role-Based Security:** Sandbox security structure simulating distinct Administrator, Buyer, and Seller permissions.- [x] **Advanced Responsive Design:** CSS layout transitions, fully responsive mobile side drawers, and high-performance, accessible touch targets.
+---
+
+## 8. Quality Assurance & Audit Verification
+
+- [x] **Authentication Security:** Bearer token authentication enforced on all protected endpoints.
+- [x] **RBAC Controls:** Server-side authorization blocks non-admins from sensitive management APIs.
+- [x] **Bcrypt Password Storage:** All passwords stored as bcrypt hashes with zero plain-text leaks in API responses.
+- [x] **Routing & Sync:** Browser back/forward history and cross-tab session syncing verified.
+- [x] **Mobile UX:** Mobile navigation drawer body scroll lock and overflow scrolling tables verified across screen sizes.
+- [x] **Type Safety & Build:** Clean TypeScript compilation with zero errors (`tsc --noEmit`) and successful production bundle compilation.

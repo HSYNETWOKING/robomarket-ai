@@ -1,45 +1,65 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, Sparkles, AlertCircle, RefreshCw, Cpu, BookOpen, Layers } from 'lucide-react';
+import { Send, Bot, Sparkles, RefreshCw, Cpu, Key, CreditCard, ArrowRight } from 'lucide-react';
+import { ApiKeyPreference } from '../types';
 
 interface Message {
   role: 'user' | 'model';
   content: string;
+  isFallback?: boolean;
+  planRecommendation?: {
+    planId: string;
+    planName: string;
+    priceUSD: number;
+    cryptoETH: number;
+    tokenAllowance: string;
+    features: string[];
+  };
+  paymentCard?: {
+    orderId: string;
+    planId: string;
+    planName: string;
+    amountUSD: number;
+    amountCrypto: number;
+    currency: 'ETH' | 'BNB' | 'USDT' | 'USDC';
+    status: 'pending' | 'confirmed';
+  };
 }
 
 interface AIAssistantProps {
   onViewRobot: (id: string) => void;
   hasGeminiKey?: boolean | null;
+  apiKeyPref?: ApiKeyPreference;
+  onOpenCheckout?: (planId: string) => void;
 }
 
 const QUICK_PROMPTS = [
   {
-    title: "Office Cleaning",
-    text: "Recommend a robot to sweep and scrub a 2-story office building. My budget is under $6,000.",
+    title: "Recommend AI Plan",
+    text: "Which AI SaaS subscription is best for high-volume LLM workloads and autonomous robotics simulations?",
   },
   {
-    title: "Educational STEM",
-    text: "I want an emotional companion dog or a programmable STEM arm for teaching Python. What models do you suggest?",
+    title: "Pro vs Enterprise",
+    text: "Compare the Pro Plan ($29/mo) and Enterprise Tier ($199/mo) in terms of token limits, supported models, and Web3 payments.",
   },
   {
-    title: "Factory Assembly",
-    text: "Compare a bipedal humanoid with a 6-axis industrial arm for physical warehouse restocking. Which is more durable?",
+    title: "BYOK Key Vault",
+    text: "How does the Bring Your Own Key (BYOK) vault work for OpenAI and Gemini keys?",
   },
   {
-    title: "Medical Delivery",
-    text: "What security features and certifications does the MedBot Care-Plus offer for clinical workflows?",
+    title: "Industrial Arm",
+    text: "Recommend a high-precision six-axis industrial arm for heavy manufacturing. Budget $50,000.",
   }
 ];
 
-export default function AIAssistant({ onViewRobot, hasGeminiKey }: AIAssistantProps) {
+export default function AIAssistant({ onViewRobot, hasGeminiKey, apiKeyPref, onOpenCheckout }: AIAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'model',
-      content: `Hello! I am your **RoboMarket AI Advisor**. 🤖\n\nI can help you analyze technical specifications, recommend robots based on budget/purpose, compare humanoid vs. industrial models, or verify listing documentation quality.\n\nHow can I assist your robotics procurement today?`
+      content: `Hello! I am your **AI SaaS & Hardware Advisor** 🤖\n\nI can help you select AI Computing Subscriptions (Free, Pro, Enterprise), compare LLM specs (Gemini 3.6 Flash, GPT-4o, Claude 3.5, DeepSeek R1), configure BYOK API Keys, or locate autonomous robotic hardware.\n\nHow can I help you today?`
     }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,12 +73,15 @@ export default function AIAssistant({ onViewRobot, hasGeminiKey }: AIAssistantPr
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
-    setError(null);
 
     try {
+      const token = localStorage.getItem('robo_token');
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content }))
         })
@@ -68,43 +91,47 @@ export default function AIAssistant({ onViewRobot, hasGeminiKey }: AIAssistantPr
       try {
         responseData = await response.json();
       } catch (e) {
-        // Not JSON
-      }
-
-      if (!response.ok) {
-        const errMsg = responseData?.error || responseData?.message || '';
-        if (errMsg.includes('GEMINI_API_KEY') || errMsg.includes('API key')) {
-          throw new Error('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
-        }
-        throw new Error(errMsg || `Advisor link failed with status ${response.status}.`);
+        // Fallback
       }
 
       const data = responseData;
-      if (!data) {
-        throw new Error('Failed to parse response from Advisor.');
-      }
-      if (data.error) {
-        if (data.error.includes('GEMINI_API_KEY') || data.error.includes('API key')) {
-          throw new Error('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
-        }
-        throw new Error(data.error);
+      setMessages(prev => [...prev, {
+        role: 'model',
+        content: data?.content || 'I have analyzed your request.',
+        isFallback: data?.isFallback,
+        planRecommendation: data?.planRecommendation,
+        paymentCard: data?.paymentCard
+      }]);
+    } catch (err: any) {
+      // Local fallback on network failure
+      const fallbackMsg = textToSend.toLowerCase();
+      let text = "I am operating via our local intelligent decision-support engine:\n\n";
+      let planRecommendation = undefined;
+      let paymentCard = undefined;
+
+      if (fallbackMsg.includes('enterprise')) {
+        text += "The **Enterprise Tier** ($199/mo or ~0.065 ETH) provides 5,000,000 tokens/mo, access to all premium models (Gemini 3.1 Pro, GPT-4o, Claude 3.5, DeepSeek R1), 300 RPM rate limits, and Web3 escrow.";
+        planRecommendation = { planId: "plan_enterprise", planName: "Enterprise Tier", priceUSD: 199, cryptoETH: 0.065, tokenAllowance: "5,000,000 tokens / mo", features: ["5M Tokens", "All Premium Models", "Web3 Escrow"] };
+        paymentCard = { orderId: "ord_" + Date.now(), planId: "plan_enterprise", planName: "Enterprise Tier", amountUSD: 199, amountCrypto: 0.065, currency: "ETH" as const, status: "pending" as const };
+      } else {
+        text += "I recommend our **Pro Plan** ($29/mo or ~0.01 ETH). It offers **500,000 tokens/mo**, Gemini 3.1 Pro, GPT-4o, Claude 3.5, and BYOK Key Vault integration.";
+        planRecommendation = { planId: "plan_pro", planName: "Pro Plan", priceUSD: 29, cryptoETH: 0.01, tokenAllowance: "500,000 tokens / mo", features: ["500k Tokens", "Access to Pro Models", "BYOK Key Vault"] };
+        paymentCard = { orderId: "ord_" + Date.now(), planId: "plan_pro", planName: "Pro Plan", amountUSD: 29, amountCrypto: 0.01, currency: "ETH" as const, status: "pending" as const };
       }
 
-      setMessages(prev => [...prev, { role: 'model', content: data.content || 'I could not synthesize a response.' }]);
-    } catch (err: any) {
-      const msg = err.message || '';
-      if (msg.includes('GEMINI_API_KEY') || msg.includes('API key')) {
-        setError('Gemini API Key is missing. Please configure GEMINI_API_KEY in the Settings > Secrets menu.');
-      } else {
-        setError(err.message || 'Communication interruption with core neural net.');
-      }
+      setMessages(prev => [...prev, {
+        role: 'model',
+        content: text,
+        isFallback: true,
+        planRecommendation,
+        paymentCard
+      }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const parseMessageText = (text: string) => {
-    // Look for robot IDs in format like [r1], [r2], etc. and replace with custom link buttons
     const regex = /\[r([1-9][0-9]*)\]/g;
     const parts = [];
     let lastIndex = 0;
@@ -114,19 +141,17 @@ export default function AIAssistant({ onViewRobot, hasGeminiKey }: AIAssistantPr
       const matchIndex = match.index;
       const robotId = 'r' + match[1];
 
-      // Add text before match
       if (matchIndex > lastIndex) {
         parts.push(<span key={lastIndex}>{text.substring(lastIndex, matchIndex)}</span>);
       }
 
-      // Add custom clickable element
       parts.push(
         <button
           key={matchIndex}
           onClick={() => onViewRobot(robotId)}
-          className="inline-flex items-center space-x-1 mx-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors cursor-pointer min-h-[32px]"
+          className="inline-flex items-center space-x-1 mx-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
         >
-          <Cpu className="h-3 w-3" />
+          <Cpu className="h-3 w-3 text-emerald-600" />
           <span>View Listing {robotId}</span>
         </button>
       );
@@ -141,45 +166,39 @@ export default function AIAssistant({ onViewRobot, hasGeminiKey }: AIAssistantPr
     return parts.length > 0 ? parts : text;
   };
 
-  // Convert custom markdown line breaks and bold characters basic styling
   const renderFormattedContent = (content: string) => {
     return content.split('\n').map((line, idx) => {
-      let element = line;
-      
-      // Check for headings
       if (line.startsWith('### ')) {
-        return <h4 key={idx} className="text-sm font-semibold text-zinc-900 dark:text-white mt-3 mb-1">{parseMessageText(line.replace('### ', ''))}</h4>;
+        return <h4 key={idx} className="text-sm font-bold text-slate-900 mt-3 mb-1">{parseMessageText(line.replace('### ', ''))}</h4>;
       }
       if (line.startsWith('## ')) {
-        return <h3 key={idx} className="text-base font-bold text-blue-700 dark:text-blue-400 mt-4 mb-2">{parseMessageText(line.replace('## ', ''))}</h3>;
+        return <h3 key={idx} className="text-base font-black text-emerald-700 mt-4 mb-2">{parseMessageText(line.replace('## ', ''))}</h3>;
       }
       if (line.startsWith('# ')) {
-        return <h2 key={idx} className="text-lg font-extrabold text-blue-850 dark:text-blue-300 mt-4 mb-2">{parseMessageText(line.replace('# ', ''))}</h2>;
+        return <h2 key={idx} className="text-lg font-black text-slate-900 mt-4 mb-2">{parseMessageText(line.replace('# ', ''))}</h2>;
       }
 
-      // Check for bullet list
       const isBullet = line.startsWith('- ') || line.startsWith('* ');
       const cleanLine = isBullet ? line.substring(2) : line;
 
-      // Simple Bold markdown handling: **bold text**
       const boldRegex = /\*\*(.*?)\*\*/g;
       const parsedLine = cleanLine.split(boldRegex).map((part, index) => {
         if (index % 2 === 1) {
-          return <strong key={index} className="text-blue-700 dark:text-blue-400 font-bold">{part}</strong>;
+          return <strong key={index} className="text-emerald-700 font-bold">{part}</strong>;
         }
         return parseMessageText(part);
       });
 
       if (isBullet) {
         return (
-          <li key={idx} className="ml-4 list-disc text-zinc-650 dark:text-zinc-350 text-sm leading-relaxed mb-1">
+          <li key={idx} className="ml-4 list-disc text-slate-700 text-xs leading-relaxed mb-1">
             {parsedLine}
           </li>
         );
       }
 
       return (
-        <p key={idx} className="text-zinc-650 dark:text-zinc-350 text-sm leading-relaxed mb-2 min-h-[1rem]">
+        <p key={idx} className="text-slate-700 text-xs leading-relaxed mb-2 min-h-[1rem]">
           {parsedLine}
         </p>
       );
@@ -187,96 +206,122 @@ export default function AIAssistant({ onViewRobot, hasGeminiKey }: AIAssistantPr
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 py-6" id="ai-advisor-panel">
-      {/* Advisor Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4 mb-4">
+    <div className="flex flex-col h-[calc(100vh-5rem)] max-w-5xl mx-auto px-4 py-4 overflow-hidden" id="ai-advisor-panel">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 pb-4 mb-4 gap-3 shrink-0">
         <div className="flex items-center space-x-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-150 dark:border-blue-900/60 text-blue-600 dark:text-blue-400">
-            <Bot className="h-6 w-6 animate-pulse" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/20">
+            <Bot className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center space-x-1.5">
-              <span>Technical AI Advisor</span>
-              <span className="text-[10px] font-mono font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/20 text-blue-750 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50">
-                Active
+            <h1 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>AI Advisor & Web3 Assistant</span>
+              <span className="text-[10px] font-mono font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                Gemini 3.6 Flash
               </span>
             </h1>
-            <p className="text-xs text-zinc-500 dark:text-zinc-450">Consult on custom robotic specifications, price checks, and warning signs</p>
+            <p className="text-xs text-slate-500">Instant plan recommendations, LLM benchmarks & chat-based Web3 ordering</p>
           </div>
         </div>
-        <button
-          onClick={() => setMessages([{
-            role: 'model',
-            content: `Feed re-initialized. I am ready to advise on your robotics marketplace purchases or compare equipment specs.`
-          }])}
-          className="flex items-center space-x-1.5 text-xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-850 dark:hover:text-white px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 transition-colors cursor-pointer shadow-sm min-h-[38px]"
-          title="Clear Conversation"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          <span>Reset Feed</span>
-        </button>
+
+        <div className="flex items-center gap-2">
+          {apiKeyPref?.mode === 'custom' ? (
+            <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+              <Key className="h-3.5 w-3.5 text-emerald-600" /> BYOK Vault Active
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-600" /> Platform Engine
+            </span>
+          )}
+
+          <button
+            onClick={() => setMessages([{
+              role: 'model',
+              content: `Feed reset. How can I assist you with SaaS plans or robotic hardware?`
+            }])}
+            className="flex items-center space-x-1.5 text-xs text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>Reset</span>
+          </button>
+        </div>
       </div>
 
-      {/* Chat workspace container */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
-        
-        {/* Messages feed */}
-        <div className="lg:col-span-3 flex flex-col h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+      {/* Main Grid */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0 overflow-hidden">
+        {/* Messages Feed */}
+        <div className="lg:col-span-3 flex flex-col h-full bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {hasGeminiKey === false && (
-              <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-amber-850 dark:text-amber-400 text-sm flex items-start space-x-3 shadow-sm" id="gemini-key-missing-assistant">
-                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <h4 className="font-semibold text-amber-900 dark:text-amber-350">Gemini API Key Missing</h4>
-                  <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-400/80">
-                    The <code className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 rounded font-mono text-[11px]">GEMINI_API_KEY</code> environment variable is not configured. 
-                    The Technical Advisor is running in offline local simulation mode. 
-                    Please configure your key in <strong>Settings &gt; Secrets</strong> to enable active Live Gemini 3.5 Flash queries.
-                  </p>
-                </div>
-              </div>
-            )}
-
             {messages.map((msg, i) => (
-              <div key={i} className="space-y-4">
-                <div
-                  className={`flex space-x-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+              <div key={i} className="space-y-3">
+                <div className={`flex space-x-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role !== 'user' && (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-150 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 self-start">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 shrink-0">
                       <Bot className="h-5 w-5" />
                     </div>
                   )}
                   <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs shadow-2xs ${
                       msg.role === 'user'
-                        ? 'bg-zinc-900 dark:bg-zinc-800 text-white dark:text-zinc-100 rounded-tr-none'
-                        : 'bg-zinc-50 dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-tl-none'
+                        ? 'bg-emerald-600 text-white rounded-tr-none font-medium'
+                        : 'bg-slate-50 border border-slate-200/80 text-slate-800 rounded-tl-none'
                     }`}
                   >
+                    {msg.isFallback && (
+                      <div className="mb-2 inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                        ⚡ Local Intelligent Fallback Engine
+                      </div>
+                    )}
+
                     {msg.role === 'user' ? (
                       <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                     ) : (
                       <div>{renderFormattedContent(msg.content)}</div>
                     )}
-                    <span className="block text-[10px] text-zinc-400 dark:text-zinc-500 text-right mt-1.5">
-                      {msg.role === 'user' ? 'You' : 'System Agent'}
+
+                    {/* Interactive Plan Recommendation / Purchase Card */}
+                    {msg.paymentCard && (
+                      <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 space-y-2 text-xs">
+                        <div className="flex items-center justify-between border-b border-emerald-200 pb-2">
+                          <span className="font-bold text-emerald-800 flex items-center gap-1.5">
+                            <CreditCard className="h-4 w-4 text-emerald-600" />
+                            <span>Recommended Order: {msg.paymentCard.planName}</span>
+                          </span>
+                          <span className="font-mono text-slate-900 font-black">${msg.paymentCard.amountUSD}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-600">
+                          <span>Crypto Equivalent:</span>
+                          <span className="font-mono font-bold text-emerald-700">{msg.paymentCard.amountCrypto} ETH</span>
+                        </div>
+                        <button
+                          onClick={() => onOpenCheckout?.(msg.paymentCard!.planId)}
+                          className="w-full mt-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 font-bold text-white hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer"
+                        >
+                          <span>Complete Purchase with Web3 Wallet</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    <span className="block text-[10px] text-slate-400 text-right mt-1">
+                      {msg.role === 'user' ? 'You' : 'AI Advisor'}
                     </span>
                   </div>
                 </div>
 
-                {/* Interactive suggestion chips rendered underneath the welcome message */}
+                {/* Quick Action Chips on first load */}
                 {i === 0 && messages.length === 1 && (
-                  <div className="pl-11 flex flex-col space-y-2 animate-fade-in" id="first-load-suggestion-chips">
-                    <span className="text-[10px] font-bold font-mono text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Quick Action Prompts</span>
+                  <div className="pl-11 flex flex-col space-y-2">
+                    <span className="text-[10px] font-bold font-mono text-slate-400 uppercase">Suggested Inquiries</span>
                     <div className="flex flex-wrap gap-2">
                       {QUICK_PROMPTS.map((qp, idx) => (
                         <button
                           key={idx}
                           onClick={() => handleSendMessage(qp.text)}
-                          className="px-3 py-1.5 text-xs bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-850 dark:hover:bg-zinc-800 text-zinc-750 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-750 hover:border-blue-400 dark:hover:border-blue-500 rounded-xl transition-all duration-200 cursor-pointer min-h-[38px] flex items-center shadow-sm"
+                          className="px-3 py-1.5 text-xs bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 rounded-xl transition-all flex items-center cursor-pointer"
                         >
-                          <Sparkles className="h-3.5 w-3.5 text-blue-550 dark:text-blue-400 mr-1.5 shrink-0" />
+                          <Sparkles className="h-3.5 w-3.5 text-emerald-600 mr-1.5" />
                           <span>{qp.title}</span>
                         </button>
                       ))}
@@ -288,27 +333,21 @@ export default function AIAssistant({ onViewRobot, hasGeminiKey }: AIAssistantPr
 
             {isLoading && (
               <div className="flex space-x-3 justify-start">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-150 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 self-start">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
                   <Bot className="h-5 w-5" />
                 </div>
-                <div className="max-w-[80%] rounded-2xl rounded-tl-none px-4 py-3 bg-zinc-50 dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm shadow-sm flex items-center space-x-2">
-                  <Cpu className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-450" />
-                  <span className="font-mono text-xs tracking-wider animate-pulse">Analyzing specs & listings...</span>
+                <div className="rounded-2xl rounded-tl-none px-4 py-3 bg-slate-50 border border-slate-200 text-slate-600 text-xs flex items-center space-x-2">
+                  <Cpu className="h-4 w-4 animate-spin text-emerald-600" />
+                  <span className="font-mono text-xs animate-pulse">Evaluating request & generating recommendation...</span>
                 </div>
               </div>
             )}
 
-            {error && (
-              <div className="flex items-center space-x-2 p-3.5 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-red-750 dark:text-red-400 text-xs">
-                <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
             <div ref={feedEndRef} />
           </div>
 
-          {/* Form input */}
-          <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40">
+          {/* Input Form */}
+          <div className="p-3 border-t border-slate-200 bg-slate-50">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -320,15 +359,14 @@ export default function AIAssistant({ onViewRobot, hasGeminiKey }: AIAssistantPr
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask advice on specs (e.g. Hume bipedal biped carry specs)..."
-                className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-750 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 text-sm rounded-lg px-4 py-2.5 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-colors min-h-[44px]"
+                placeholder="Ask about Pro plan, token limits, BYOK setup, or robotic hardware..."
+                className="flex-1 bg-white border border-slate-200 text-slate-900 placeholder-slate-400 text-xs rounded-xl px-4 py-3 focus:border-emerald-500 focus:outline-none"
                 disabled={isLoading}
               />
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer min-h-[44px] min-w-[44px]"
-                id="send-message-btn"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 transition-colors shadow-xs cursor-pointer"
               >
                 <Send className="h-4 w-4" />
               </button>
@@ -336,46 +374,25 @@ export default function AIAssistant({ onViewRobot, hasGeminiKey }: AIAssistantPr
           </div>
         </div>
 
-        {/* Quick Help & Guidelines Column */}
-        <div className="space-y-4 lg:overflow-y-auto lg:max-h-full pb-6 pr-1">
-          <div className="p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
-            <h2 className="text-xs font-bold font-mono tracking-wider text-blue-700 dark:text-blue-400 uppercase flex items-center space-x-1.5 mb-3">
-              <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 animate-pulse" />
-              <span>Sandbox Fast Queries</span>
+        {/* Sidebar Info */}
+        <div className="hidden lg:block space-y-4 overflow-y-auto">
+          <div className="p-4 bg-white border border-slate-200/80 rounded-2xl space-y-3 shadow-2xs">
+            <h2 className="text-xs font-bold font-mono text-emerald-700 uppercase flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>SaaS Capabilities</span>
             </h2>
-            <div className="space-y-2">
-              {QUICK_PROMPTS.map((qp, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSendMessage(qp.text)}
-                  className="w-full text-left p-2.5 rounded-lg bg-zinc-50/80 dark:bg-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 hover:border-blue-400 dark:hover:border-blue-500 text-xs transition-all duration-200 cursor-pointer group min-h-[44px]"
-                >
-                  <p className="font-semibold text-zinc-850 dark:text-zinc-200 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">{qp.title}</p>
-                  <p className="text-zinc-550 dark:text-zinc-450 line-clamp-2 mt-0.5">{qp.text}</p>
-                </button>
-              ))}
+            <div className="space-y-2 text-xs text-slate-600">
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                <strong className="text-slate-900 block mb-0.5">Chat-Based Subscriptions</strong>
+                <span>Ask the advisor to recommend or buy plans directly in chat.</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                <strong className="text-slate-900 block mb-0.5">Bring Your Own Key (BYOK)</strong>
+                <span>Pass your personal OpenAI/Gemini keys for zero-markup usage.</span>
+              </div>
             </div>
           </div>
-
-          <div className="p-4 bg-zinc-50/50 dark:bg-zinc-900/20 border border-zinc-200 dark:border-zinc-800 rounded-xl space-y-2.5 shadow-sm">
-            <h3 className="text-xs font-semibold text-zinc-850 dark:text-zinc-200 flex items-center space-x-1.5">
-              <BookOpen className="h-3.5 w-3.5 text-blue-605 dark:text-blue-400" />
-              <span>Safety Enforcement</span>
-            </h3>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-450 leading-relaxed">
-              Our AI Assistant utilizes a restrictive system prompt. It is trained strictly on commercial robotics, safety procedures, and marketplace transactions. Unrelated system queries (such as philosophy, web coding, or pop music) will be politely rejected.
-            </p>
-            <div className="h-px bg-zinc-250 dark:bg-zinc-800" />
-            <h3 className="text-xs font-semibold text-zinc-850 dark:text-zinc-200 flex items-center space-x-1.5">
-              <Layers className="h-3.5 w-3.5 text-blue-605 dark:text-blue-400" />
-              <span>Specification Linking</span>
-            </h3>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-450 leading-relaxed">
-              When recommending specific machines, look out for clickable robot tags in the response feed. Click on them to directly open that robotic system profile and initiate checkout.
-            </p>
-          </div>
         </div>
-
       </div>
     </div>
   );

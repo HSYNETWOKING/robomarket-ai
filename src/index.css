@@ -1,51 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
-@variant dark (&:where(.dark, .dark *));
-
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
-  --color-zinc-50: #f8fafc;
-  --color-zinc-100: #f1f5f9;
-  --color-zinc-200: #e2e8f0;
-  --color-zinc-300: #cbd5e1;
-  --color-zinc-800: #1e293b;
-  --color-zinc-900: #0f172a;
-  --color-zinc-950: #0b0f17;
-  
-  --color-blue-500: #3b82f6;
-  --color-blue-600: #2563eb;
-  --color-blue-400: #38bdf8;
+  --color-emerald-500: #22c55e;
+  --color-emerald-600: #16a34a;
+  --color-emerald-700: #15803d;
+  --color-emerald-800: #166534;
 }
 
-/* Custom scrollbar matching clean minimalism light theme */
+/* Custom scrollbar for clean light mode interface */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f4f4f5; /* zinc-100 */
-}
-.dark ::-webkit-scrollbar-track {
-  background: #18181b; /* zinc-900 */
+  background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #e4e4e7; /* zinc-200 */
+  background: #cbd5e1;
   border-radius: 4px;
-}
-.dark ::-webkit-scrollbar-thumb {
-  background: #3f3f46; /* zinc-700 */
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b82f6; /* blue-500 */
+  background: #16a34a;
 }
 
-/* Keyframes and classes for smooth animations */
+/* Animations */
 @keyframes slideInRight {
   from {
     transform: translateX(100%);
@@ -60,5 +45,7 @@
 }
 
 body {
-  @apply overflow-x-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200;
+  @apply overflow-x-hidden bg-slate-50 text-slate-900 transition-colors duration-200 antialiased;
+  background-color: #f8fafc;
+  color: #0f172a;
 }

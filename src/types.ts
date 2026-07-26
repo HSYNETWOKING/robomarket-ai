@@ -2,11 +2,120 @@ export interface User {
   id: string;
   email: string;
   username: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'manager';
   rating: number;
   ratingCount: number;
   avatar: string;
   createdAt: string;
+  walletAddress?: string;
+  planId?: string;
+  planName?: string;
+  tokenBalance?: number;
+  tokenLimit?: number;
+}
+
+export type WalletType = 'MetaMask' | 'Rabby' | 'WalletConnect' | 'Phantom' | 'Coinbase';
+export type CryptoCurrency = 'ETH' | 'BNB' | 'USDT' | 'USDC' | 'MATIC' | 'SOL';
+
+export interface WalletState {
+  isConnected: boolean;
+  address: string | null;
+  walletType: WalletType | null;
+  network: string;
+  chainId: number;
+  balances: Record<CryptoCurrency, number>;
+}
+
+export interface CryptoPayment {
+  id: string;
+  txHash: string;
+  amountCrypto: number;
+  currency: CryptoCurrency;
+  amountUSD: number;
+  type: 'subscription' | 'credit_pack' | 'api_addon';
+  planId: string;
+  planName: string;
+  userAddress: string;
+  userName: string;
+  status: 'pending' | 'confirming' | 'confirmed' | 'failed';
+  timestamp: string;
+  blockNumber: number;
+  gasFeeETH?: string;
+  receiptUrl?: string;
+}
+
+export interface SaaSPlan {
+  id: string;
+  name: string;
+  badge?: string;
+  monthlyPriceUSD: number;
+  cryptoPrices: Record<CryptoCurrency, number>;
+  tokenAllowance: string; // e.g. "50,000 / mo" or "Unlimited"
+  tokenCount: number;
+  modelsAccess: string[];
+  features: string[];
+  isPopular?: boolean;
+  maxRequestsPerMin: number;
+  supportLevel: string;
+  byokSupported: boolean;
+}
+
+export interface AIModelSpec {
+  id: string;
+  name: string;
+  provider: 'Google' | 'OpenAI' | 'Anthropic' | 'xAI' | 'DeepSeek' | 'Meta';
+  contextWindow: string;
+  tokenRateLimit: string;
+  speedTier: 'Ultra Fast' | 'Fast' | 'Standard';
+  reasoningTier: 'God Tier' | 'High' | 'Standard';
+  costPer1kTokensUSD: number;
+  availability: 'Free' | 'Pro' | 'Enterprise';
+  description: string;
+  byokSupported: boolean;
+}
+
+export type ApiKeyProvider = 'openai' | 'gemini' | 'claude' | 'grok' | 'deepseek' | 'mistral';
+
+export interface UserApiKey {
+  id: string;
+  provider: ApiKeyProvider;
+  keyName: string;
+  maskedKey: string;
+  rawKey: string;
+  status: 'active' | 'invalid' | 'untested';
+  lastTestedAt?: string;
+  createdAt: string;
+}
+
+export interface ApiKeyPreference {
+  mode: 'platform' | 'custom';
+  activeCustomKeyId: string | null;
+}
+
+export interface AdvisorChatMessage {
+  id: string;
+  sender: 'user' | 'ai' | 'system';
+  text: string;
+  timestamp: string;
+  isFallback?: boolean;
+  planRecommendation?: {
+    planId: string;
+    planName: string;
+    priceUSD: number;
+    cryptoETH: number;
+    tokenAllowance: string;
+    features: string[];
+  };
+  paymentCard?: {
+    orderId: string;
+    planId: string;
+    planName: string;
+    amountUSD: number;
+    amountCrypto: number;
+    currency: CryptoCurrency;
+    status: 'pending' | 'processing' | 'paid';
+    txHash?: string;
+  };
 }
 
 export interface Review {
@@ -93,3 +202,4 @@ export interface AISearchResult {
   matchedRobotIds: string[];
   suggestedBudgetRange?: string;
 }
+

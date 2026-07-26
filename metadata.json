@@ -1,6 +1,6 @@
 {
   "name": "RoboMarket AI",
-  "description": "An autonomous commercial robot marketplace connecting global buyers, robotics researchers, and certified manufacturers with AI-powered safety verification.",
+  "description": "A modern AI SaaS platform with Web3 wallet integration, crypto payments, AI Advisor with chat ordering, custom API key management, and model tier comparisons.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
